@@ -323,11 +323,7 @@ function BoardSection() {
 
   const supabase = useMemo(() => getPortfolioSupabase(), [])
   const isFormValid = title.trim() && author.trim() && content.trim()
-  const boardStatus =
-    status ||
-    (!supabase
-      ? "Supabase 설정 전에는 이 브라우저에 임시 저장되는 로컬 게시판으로 동작합니다."
-      : "Supabase 실시간 게시판이 연결되었습니다.")
+  const boardStatus = status || (!supabase ? "이 브라우저에 임시 저장되는 로컬 게시판으로 동작합니다." : "")
 
   useEffect(() => {
     if (!supabase) {
@@ -353,7 +349,7 @@ function BoardSection() {
       }
 
       setPosts(mapSupabasePosts(data ?? []))
-      setStatus("Supabase에서 게시글을 불러왔습니다.")
+      setStatus("")
     }
 
     void loadPosts()
@@ -410,7 +406,7 @@ function BoardSection() {
           throw error
         }
 
-        setStatus("Supabase 게시글이 등록되었습니다.")
+        setStatus("공지 게시글이 등록되었습니다.")
       } else {
         const nextPosts = [newPost, ...posts]
         setPosts(nextPosts)
@@ -463,7 +459,7 @@ function BoardSection() {
   return (
     <section className="news-section" id="board" aria-labelledby="board-title">
       <div className="section-heading">
-        <span className="section-label">Company Notice</span>
+        <span className="section-label">Notice</span>
         <h2 id="board-title">공지 게시판</h2>
       </div>
       <div className="board-toolbar">
@@ -554,9 +550,9 @@ function BoardSection() {
                     onClick={() => void handleDelete(post.id)}
                     disabled={deletingPostId === post.id}
                     aria-label={`${post.title} 삭제`}
+                    title="삭제"
                   >
                     <Trash2 aria-hidden="true" />
-                    {deletingPostId === post.id ? "삭제 중" : "삭제"}
                   </button>
                 </div>
                 <p>{post.content}</p>
