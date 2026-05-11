@@ -28,6 +28,13 @@ with check (
   and length(trim(author)) > 0
 );
 
+drop policy if exists "Anyone can delete posts" on public.posts;
+create policy "Anyone can delete posts"
+on public.posts
+for delete
+to anon
+using (true);
+
 do $$
 begin
   alter publication supabase_realtime add table public.posts;

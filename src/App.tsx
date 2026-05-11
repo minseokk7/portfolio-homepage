@@ -1,5 +1,17 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, ArrowUpRight, Factory, Mail, Menu, MessageSquareText, MoveRight, Plus, Send, X } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  Factory,
+  Mail,
+  Menu,
+  MessageSquareText,
+  MoveRight,
+  Plus,
+  Send,
+  Trash2,
+  X,
+} from "lucide-react"
 
 import { getPortfolioSupabase, isSupabaseConfigured, type SupabasePost } from "@/lib/supabase"
 
@@ -23,6 +35,7 @@ type SystemItem = {
 }
 
 const LOCAL_POSTS_KEY = "aurora-robotics-posts"
+const assetPath = (path: string) => `${import.meta.env.BASE_URL}${path}`.replace(/\/+/g, "/")
 
 const navItems = [
   ["Solutions", "solutions"],
@@ -39,7 +52,7 @@ const systems: SystemItem[] = [
     summary: "비전 인식과 협동 로봇을 연결해 반복 공정을 자동화하는 생산 라인 시스템.",
     detail:
       "Factory Motion은 제품 위치 인식, 로봇 팔 제어, 작업자 안전 구역 감지를 하나의 흐름으로 연결합니다. 반복 조립, 부품 정렬, 품질 검사처럼 시간이 많이 드는 공정을 안정적으로 처리하도록 설계했습니다.",
-    image: "/portfolio-homepage/images/robot-inspection.png",
+    image: assetPath("images/robot-inspection.png"),
     imageAlt: "AI 비전 검사 장비와 로봇 그리퍼가 있는 자동화 검사 스테이션",
     services: ["Robot Arm", "Vision AI", "Line Control", "Safety Layer"],
     specs: ["카메라 기반 위치 추정", "협동 로봇 작업 경로 제어", "작업자 접근 감지", "라인 상태 대시보드"],
@@ -50,7 +63,7 @@ const systems: SystemItem[] = [
     summary: "실내외 자율주행 로봇을 활용해 물류, 장비 이동, 캠퍼스 안내를 지원하는 플랫폼.",
     detail:
       "Campus Delivery는 교육기관, 연구소, 사무 공간에서 작은 물품을 이동시키는 자율주행 로봇 서비스입니다. 지도 생성, 경로 계획, 원격 관제 화면을 포함해 실제 공간에서 운영 가능한 형태를 목표로 합니다.",
-    image: "/portfolio-homepage/images/robot-delivery.png",
+    image: assetPath("images/robot-delivery.png"),
     imageAlt: "스마트 팩토리 복도에서 화물을 운반하는 자율주행 로봇",
     services: ["AMR", "Mapping", "Fleet UI", "Telemetry"],
     specs: ["실내 지도 생성", "장애물 회피", "배송 상태 추적", "다중 로봇 관제"],
@@ -61,7 +74,7 @@ const systems: SystemItem[] = [
     summary: "센서 데이터와 카메라를 결합해 설비 이상을 조기에 감지하는 검사 자동화 솔루션.",
     detail:
       "Inspection Core는 카메라, 조명, 센서 데이터를 결합해 설비와 제품의 이상 징후를 확인합니다. 검사 결과는 기록으로 남고, 운영자는 문제 발생 지점을 빠르게 파악할 수 있습니다.",
-    image: "/portfolio-homepage/images/robot-operations.png",
+    image: assetPath("images/robot-operations.png"),
     imageAlt: "로봇 운영 데이터를 보여주는 관제실과 로봇 프로토타입",
     services: ["Edge AI", "Sensors", "Dashboard", "Report"],
     specs: ["불량 이미지 분류", "센서 이상 탐지", "검사 이력 저장", "운영 리포트 생성"],
@@ -306,6 +319,7 @@ function BoardSection() {
   const [content, setContent] = useState("")
   const [status, setStatus] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null)
 
   const supabase = useMemo(() => getPortfolioSupabase(), [])
   const isFormValid = title.trim() && author.trim() && content.trim()
@@ -415,11 +429,42 @@ function BoardSection() {
     }
   }
 
+  async function handleDelete(postId: string) {
+    if (!window.confirm("이 공지를 삭제할까요?")) {
+      return
+    }
+
+    setDeletingPostId(postId)
+    setStatus("")
+
+    try {
+      if (supabase && isSupabaseConfigured) {
+        const { error } = await supabase.from("posts").delete().eq("id", postId)
+
+        if (error) {
+          throw error
+        }
+
+        setPosts((currentPosts) => currentPosts.filter((post) => post.id !== postId))
+        setStatus("공지 게시글이 삭제되었습니다.")
+      } else {
+        const nextPosts = posts.filter((post) => post.id !== postId)
+        setPosts(nextPosts)
+        localStorage.setItem(LOCAL_POSTS_KEY, JSON.stringify(nextPosts))
+        setStatus("로컬 공지 게시글이 삭제되었습니다.")
+      }
+    } catch {
+      setStatus("삭제에 실패했습니다. Supabase 삭제 권한을 확인하세요.")
+    } finally {
+      setDeletingPostId(null)
+    }
+  }
+
   return (
     <section className="news-section" id="board" aria-labelledby="board-title">
       <div className="section-heading">
         <span className="section-label">Company Notice</span>
-        <h2 id="board-title">로봇 회사 공지 게시판</h2>
+        <h2 id="board-title">공지 게시판</h2>
       </div>
       <div className="board-toolbar">
         <p>제품 소식, 시연 일정, 기술 업데이트를 한곳에서 확인합니다.</p>
@@ -498,9 +543,21 @@ function BoardSection() {
           {posts.length > 0 ? (
             posts.map((post) => (
               <article className="post-card" key={post.id}>
-                <div>
-                  <h3>{post.title}</h3>
-                  <span>{post.author}</span>
+                <div className="post-card-header">
+                  <div>
+                    <h3>{post.title}</h3>
+                    <span>{post.author}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="delete-post-button"
+                    onClick={() => void handleDelete(post.id)}
+                    disabled={deletingPostId === post.id}
+                    aria-label={`${post.title} 삭제`}
+                  >
+                    <Trash2 aria-hidden="true" />
+                    {deletingPostId === post.id ? "삭제 중" : "삭제"}
+                  </button>
                 </div>
                 <p>{post.content}</p>
               </article>

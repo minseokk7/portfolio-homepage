@@ -502,7 +502,9 @@ textarea:focus-visible {
 }
 
 .news-section {
-  background: oklch(0.97 0.01 251);
+  background:
+    linear-gradient(180deg, oklch(0.97 0.01 251), oklch(0.93 0.025 251)),
+    radial-gradient(circle at 82% 20%, oklch(0.68 0.18 238 / 20%), transparent 30rem);
 }
 
 .detail-page {
@@ -666,6 +668,7 @@ textarea:focus-visible {
 
 .post-panel {
   border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .modal-backdrop {
@@ -799,10 +802,19 @@ textarea:focus-visible {
 
 .post-card {
   border-bottom: 1px solid var(--border);
-  padding: 24px 0;
+  padding: 26px 0;
+  transition: border-color 180ms ease, padding 180ms ease;
 }
 
-.post-card div {
+.post-card:last-child {
+  border-bottom: 0;
+}
+
+.post-card:hover {
+  border-color: oklch(0.47 0.12 250 / 42%);
+}
+
+.post-card-header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -819,6 +831,45 @@ textarea:focus-visible {
   color: oklch(0.48 0.16 260);
   font-size: 0.84rem;
   font-weight: 750;
+}
+
+.post-card p {
+  max-width: 920px;
+  margin: 14px 0 0;
+}
+
+.delete-post-button {
+  display: inline-flex;
+  min-height: 38px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: oklch(0.34 0.04 250);
+  cursor: pointer;
+  padding: 0 12px;
+  font-size: 0.86rem;
+  font-weight: 750;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.delete-post-button:hover:not(:disabled) {
+  background: oklch(0.18 0.13 265);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.delete-post-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.delete-post-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 .empty-state {
@@ -980,10 +1031,15 @@ textarea:focus-visible {
     grid-column: 1;
   }
 
-  .post-card div {
+  .post-card-header,
+  .post-card-header div {
     align-items: start;
     flex-direction: column;
     gap: 5px;
+  }
+
+  .delete-post-button {
+    width: 100%;
   }
 }
 
