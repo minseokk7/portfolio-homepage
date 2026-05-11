@@ -799,8 +799,9 @@ textarea:focus-visible {
 
 .post-card {
   display: grid;
-  grid-template-columns: minmax(220px, 0.55fr) minmax(0, 1fr);
-  gap: clamp(18px, 4vw, 56px);
+  grid-template-columns: minmax(120px, 0.22fr) minmax(0, 1fr) 38px;
+  align-items: start;
+  gap: clamp(18px, 4vw, 48px);
   border-bottom: 1px solid var(--border);
   padding: 28px 0;
   transition: border-color 180ms ease;
@@ -814,13 +815,6 @@ textarea:focus-visible {
   border-color: oklch(0.47 0.12 250 / 42%);
 }
 
-.post-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-}
-
 .post-card h3,
 .empty-state h3 {
   margin: 0;
@@ -829,9 +823,8 @@ textarea:focus-visible {
   line-height: 1.08;
 }
 
-.post-card span {
+.post-meta span {
   display: block;
-  margin-top: 10px;
   color: oklch(0.42 0.03 250);
   font-size: 0.84rem;
   font-weight: 750;
@@ -839,7 +832,7 @@ textarea:focus-visible {
 
 .post-card p {
   max-width: 860px;
-  margin: 0;
+  margin: 12px 0 0;
 }
 
 .delete-post-button {
@@ -854,6 +847,7 @@ textarea:focus-visible {
   color: oklch(0.34 0.04 250);
   cursor: pointer;
   padding: 0;
+  justify-self: end;
   transition: background 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
@@ -1033,15 +1027,20 @@ textarea:focus-visible {
     grid-column: 1;
   }
 
-  .post-card-header,
-  .post-card-header div {
-    align-items: start;
-    flex-direction: column;
-    gap: 5px;
+  .post-card {
+    gap: 12px;
+  }
+
+  .post-meta {
+    display: flex;
+    justify-content: space-between;
   }
 
   .delete-post-button {
     width: 38px;
+    grid-column: 1;
+    grid-row: 3;
+    justify-self: start;
   }
 }
 

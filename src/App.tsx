@@ -460,7 +460,7 @@ function BoardSection() {
     <section className="news-section" id="board" aria-labelledby="board-title">
       <div className="section-heading">
         <span className="section-label">Notice</span>
-        <h2 id="board-title">공지 게시판</h2>
+        <h2 id="board-title">Notice Board</h2>
       </div>
       <div className="board-toolbar">
         <p>제품 소식, 시연 일정, 기술 업데이트를 한곳에서 확인합니다.</p>
@@ -539,23 +539,23 @@ function BoardSection() {
           {posts.length > 0 ? (
             posts.map((post) => (
               <article className="post-card" key={post.id}>
-                <div className="post-card-header">
-                  <div>
-                    <h3>{post.title}</h3>
-                    <span>{post.author}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="delete-post-button"
-                    onClick={() => void handleDelete(post.id)}
-                    disabled={deletingPostId === post.id}
-                    aria-label={`${post.title} 삭제`}
-                    title="삭제"
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </button>
+                <div className="post-meta">
+                  <span>{post.author}</span>
                 </div>
-                <p>{post.content}</p>
+                <div className="post-content">
+                  <h3>{post.title}</h3>
+                  <p>{post.content}</p>
+                </div>
+                <button
+                  type="button"
+                  className="delete-post-button"
+                  onClick={() => void handleDelete(post.id)}
+                  disabled={deletingPostId === post.id}
+                  aria-label={`${post.title} 삭제`}
+                  title="삭제"
+                >
+                  <Trash2 aria-hidden="true" />
+                </button>
               </article>
             ))
           ) : (
