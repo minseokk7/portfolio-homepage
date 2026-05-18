@@ -666,6 +666,13 @@ textarea:focus-visible {
   color: var(--foreground);
 }
 
+.notice-detail-page {
+  min-height: 100svh;
+  padding: 142px clamp(20px, 6vw, 92px) clamp(74px, 9vw, 132px);
+  background: oklch(0.97 0.01 251);
+  color: var(--foreground);
+}
+
 .back-link,
 .detail-cta {
   display: inline-flex;
@@ -767,6 +774,52 @@ textarea:focus-visible {
   margin-top: 44px;
   border-bottom: 1px solid currentColor;
   padding-bottom: 7px;
+}
+
+.notice-detail-heading {
+  display: grid;
+  gap: 26px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 42px;
+}
+
+.notice-detail-heading h1 {
+  max-width: 1120px;
+  margin: 0;
+  font-size: clamp(3.2rem, 7vw, 8rem);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 0.98;
+}
+
+.notice-detail-meta,
+.post-meta time {
+  color: oklch(0.42 0.03 250);
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.notice-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+
+.notice-detail-body {
+  max-width: 880px;
+  padding-top: 40px;
+}
+
+.notice-detail-body p {
+  margin: 0 0 18px;
+  color: oklch(0.28 0.03 250);
+  font-size: clamp(1.08rem, 1.8vw, 1.34rem);
+  line-height: 1.78;
+}
+
+.notice-detail-empty {
+  border-top: 1px solid var(--border);
+  margin-top: 54px;
 }
 
 .board-layout {
@@ -898,6 +951,15 @@ textarea:focus-visible {
 .post-card p {
   max-width: 860px;
   margin: 12px 0 0;
+}
+
+.post-card h3 a {
+  display: inline-flex;
+  transition: color 180ms ease;
+}
+
+.post-card h3 a:hover {
+  color: oklch(0.42 0.19 260);
 }
 
 .delete-post-button {
@@ -1115,20 +1177,67 @@ textarea:focus-visible {
   max-width: 980px;
 }
 
-.contact-links {
-  display: flex;
-  flex-direction: column;
+.contact-form {
+  display: grid;
   gap: 12px;
+  align-self: start;
 }
 
-.contact-links a {
+.contact-form label {
+  color: oklch(0.9 0.02 250);
+  font-size: 0.88rem;
+  font-weight: 750;
+}
+
+.contact-form input,
+.contact-form textarea {
+  width: 100%;
+  border: 1px solid oklch(1 0 0 / 28%);
+  background: oklch(1 0 0 / 8%);
+  color: white;
+  padding: 14px;
+}
+
+.contact-form textarea {
+  resize: vertical;
+}
+
+.contact-form button,
+.contact-inline-link {
   display: inline-flex;
   min-height: 50px;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   border: 1px solid oklch(1 0 0 / 28%);
+  background: white;
+  color: oklch(0.18 0.13 265);
+  cursor: pointer;
   padding: 0 15px;
-  font-weight: 750;
+  font-weight: 800;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.contact-form button:hover,
+.contact-inline-link:hover {
+  transform: translateY(-2px);
+}
+
+.contact-inline-link {
+  background: transparent;
+  color: white;
+}
+
+.contact-form svg {
+  width: 18px;
+  height: 18px;
+}
+
+.contact-status {
+  margin: 0;
+  color: oklch(0.88 0.02 250);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 980px) {

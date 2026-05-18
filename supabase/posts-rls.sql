@@ -12,6 +12,9 @@ create table if not exists public.posts (
 alter table public.posts enable row level security;
 
 drop policy if exists "Anyone can read posts" on public.posts;
+drop policy if exists "Anyone can create posts" on public.posts;
+drop policy if exists "Anyone can update posts" on public.posts;
+drop policy if exists "Anyone can delete posts" on public.posts;
 drop policy if exists "Only admin can insert posts" on public.posts;
 drop policy if exists "Only admin can update posts" on public.posts;
 drop policy if exists "Only admin can delete posts" on public.posts;

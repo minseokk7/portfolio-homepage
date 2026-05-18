@@ -14,26 +14,42 @@ drop policy if exists "Anyone can read posts" on public.posts;
 create policy "Anyone can read posts"
 on public.posts
 for select
-to anon
+to public
 using (true);
 
 drop policy if exists "Anyone can create posts" on public.posts;
-create policy "Anyone can create posts"
+drop policy if exists "Anyone can delete posts" on public.posts;
+drop policy if exists "Anyone can update posts" on public.posts;
+drop policy if exists "Only admin can insert posts" on public.posts;
+drop policy if exists "Only admin can update posts" on public.posts;
+drop policy if exists "Only admin can delete posts" on public.posts;
+
+create policy "Only admin can insert posts"
 on public.posts
 for insert
-to anon
+to authenticated
 with check (
-  length(trim(title)) > 0
-  and length(trim(content)) > 0
-  and length(trim(author)) > 0
+  auth.jwt() ->> 'email' = '<ADMIN_EMAIL>'
 );
 
-drop policy if exists "Anyone can delete posts" on public.posts;
-create policy "Anyone can delete posts"
+create policy "Only admin can update posts"
+on public.posts
+for update
+to authenticated
+using (
+  auth.jwt() ->> 'email' = '<ADMIN_EMAIL>'
+)
+with check (
+  auth.jwt() ->> 'email' = '<ADMIN_EMAIL>'
+);
+
+create policy "Only admin can delete posts"
 on public.posts
 for delete
-to anon
-using (true);
+to authenticated
+using (
+  auth.jwt() ->> 'email' = '<ADMIN_EMAIL>'
+);
 
 do $$
 begin

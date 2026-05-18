@@ -112,6 +112,11 @@ function App() {
       return
     }
 
+    if (route.startsWith("#notice-")) {
+      window.scrollTo({ top: 0, behavior: "auto" })
+      return
+    }
+
     if (route.startsWith("#detail-")) {
       window.scrollTo({ top: 0, behavior: "auto" })
       return
@@ -128,6 +133,7 @@ function App() {
 
   const detailSlug = route.startsWith("#detail-") ? route.replace("#detail-", "") : ""
   const detailSystem = systems.find((system) => system.slug === detailSlug)
+  const noticeId = route.startsWith("#notice-") ? route.replace("#notice-", "") : ""
   const isAdminRoute = Boolean(adminHash && route === adminHash)
 
   return (
@@ -137,6 +143,8 @@ function App() {
       <main>
         {isAdminRoute ? (
           <AdminPage />
+        ) : noticeId ? (
+          <NoticeDetailPage postId={noticeId} />
         ) : detailSystem ? (
           <DetailPage system={detailSystem} />
         ) : (
@@ -460,9 +468,12 @@ function BoardSection() {
               <article className="post-card post-card--public" key={post.id}>
                 <div className="post-meta">
                   <span>{post.author}</span>
+                  {post.createdAt ? <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time> : null}
                 </div>
                 <div className="post-content">
-                  <h3>{post.title}</h3>
+                  <h3>
+                    <a href={`#notice-${post.id}`}>{post.title}</a>
+                  </h3>
                   <p>{post.content}</p>
                 </div>
               </article>
@@ -476,6 +487,43 @@ function BoardSection() {
           )}
         </div>
       </div>
+    </section>
+  )
+}
+
+function NoticeDetailPage({ postId }: { postId: string }) {
+  const { posts, status } = useNoticePosts()
+  const post = posts.find((currentPost) => currentPost.id === postId)
+
+  return (
+    <section className="notice-detail-page" aria-labelledby="notice-detail-title">
+      <a className="back-link" href="#board">
+        <ArrowLeft aria-hidden="true" />
+        게시판으로 돌아가기
+      </a>
+      <span className="section-label">Notice Detail</span>
+      {post ? (
+        <>
+          <div className="notice-detail-heading">
+            <h1 id="notice-detail-title">{post.title}</h1>
+            <div className="notice-detail-meta">
+              <span>{post.author}</span>
+              {post.createdAt ? <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time> : null}
+            </div>
+          </div>
+          <article className="notice-detail-body">
+            {post.content.split("\n").map((line, index) => (
+              <p key={`${post.id}-${index}`}>{line || "\u00a0"}</p>
+            ))}
+          </article>
+        </>
+      ) : (
+        <div className="empty-state notice-detail-empty">
+          <MessageSquareText aria-hidden="true" />
+          <h1 id="notice-detail-title">공지사항을 찾을 수 없습니다</h1>
+          <p>{status || "게시글이 삭제되었거나 아직 불러오는 중입니다."}</p>
+        </div>
+      )}
     </section>
   )
 }
@@ -901,22 +949,64 @@ function useNoticePosts() {
 }
 
 function ContactSection() {
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [message, setMessage] = useState("")
+  const [status, setStatus] = useState("")
+  const isContactFormValid = name.trim() && email.trim() && message.trim()
+
+  function handleContactSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!isContactFormValid) {
+      setStatus("이름, 이메일, 문의 내용을 모두 입력하세요.")
+      return
+    }
+
+    const subject = encodeURIComponent(`[AURORA Robotics] ${name.trim()}님의 문의`)
+    const body = encodeURIComponent(`이름: ${name.trim()}\n이메일: ${email.trim()}\n\n${message.trim()}`)
+
+    setStatus("메일 앱을 열었습니다. 전송 전 내용을 확인하세요.")
+    window.location.href = `mailto:hello@aurora-robotics.example?subject=${subject}&body=${body}`
+  }
+
   return (
     <footer className="contact-section" id="contact" aria-labelledby="contact-title">
       <div>
         <span className="section-label">Build With Us</span>
         <h2 id="contact-title">Design the next movement with AURORA Robotics.</h2>
       </div>
-      <div className="contact-links">
-        <a href="mailto:hello@aurora-robotics.example">
+      <form className="contact-form" onSubmit={handleContactSubmit}>
+        <label htmlFor="contact-name">이름</label>
+        <input id="contact-name" value={name} onChange={(event) => setName(event.target.value)} />
+        <label htmlFor="contact-email">이메일</label>
+        <input
+          id="contact-email"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <label htmlFor="contact-message">문의 내용</label>
+        <textarea
+          id="contact-message"
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          rows={5}
+        />
+        <button type="submit">
           <Mail aria-hidden="true" />
-          hello@aurora-robotics.example
-        </a>
-        <a href="#systems">
+          문의 보내기
+        </button>
+        <a className="contact-inline-link" href="#systems">
           <Factory aria-hidden="true" />
           솔루션 보기
         </a>
-      </div>
+        {status ? (
+          <p className="contact-status" role="status">
+            {status}
+          </p>
+        ) : null}
+      </form>
     </footer>
   )
 }
@@ -976,6 +1066,14 @@ function mapSupabasePosts(posts: SupabasePost[]): Post[] {
     author: post.author,
     createdAt: post.created_at,
   }))
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value))
 }
 
 function normalizeAdminHash(value: string | undefined) {
