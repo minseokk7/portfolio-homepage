@@ -975,6 +975,20 @@ function ContactSection() {
       <div>
         <span className="section-label">Build With Us</span>
         <h2 id="contact-title">Design the next movement with AURORA Robotics.</h2>
+        <div className="contact-info" aria-label="Contact information">
+          <div>
+            <span>Email</span>
+            <strong>hello@aurora-robotics.example</strong>
+          </div>
+          <div>
+            <span>Response</span>
+            <strong>Within 2 business days</strong>
+          </div>
+          <div>
+            <span>Focus</span>
+            <strong>Automation, AMR, vision robotics</strong>
+          </div>
+        </div>
       </div>
       <form className="contact-form" onSubmit={handleContactSubmit}>
         <label htmlFor="contact-name">이름</label>
