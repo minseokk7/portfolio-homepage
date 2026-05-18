@@ -13,7 +13,12 @@ import {
   X,
 } from "lucide-react"
 
-import { getPortfolioSupabase, isSupabaseConfigured, type SupabasePost } from "@/lib/supabase"
+import {
+  getPortfolioSupabase,
+  isSupabaseConfigured,
+  type SupabaseContactMessage,
+  type SupabasePost,
+} from "@/lib/supabase"
 
 type Post = {
   id: string
@@ -37,6 +42,15 @@ type SystemItem = {
 type AdminRateLimit = {
   attempts: number
   lockedUntil: number
+}
+
+type ContactMessage = {
+  id: string
+  name: string
+  email: string
+  message: string
+  source: string
+  createdAt: string
 }
 
 const LOCAL_POSTS_KEY = "aurora-robotics-posts"
@@ -542,6 +556,12 @@ function AdminPage() {
 
   const supabase = useMemo(() => getPortfolioSupabase(), [])
   const { posts, status, isSubmitting, deletingPostId, submitPost, deletePost } = useNoticePosts()
+  const {
+    contacts,
+    status: contactStatus,
+    deletingContactId,
+    deleteContact,
+  } = useContactMessages(isAuthenticated)
   const isFormValid = title.trim() && author.trim() && content.trim()
   const lockoutRemainingMs = Math.max(0, rateLimit.lockedUntil - now)
   const isLoginLocked = lockoutRemainingMs > 0
@@ -806,6 +826,49 @@ function AdminPage() {
           )}
         </div>
       </div>
+      <section className="admin-contacts" aria-labelledby="admin-contacts-title">
+        <div>
+          <span className="section-label">Contact Inbox</span>
+          <h2 id="admin-contacts-title">Contact Messages</h2>
+        </div>
+        <div className="admin-contact-list" aria-live="polite">
+          {contactStatus ? (
+            <p className="form-status" role="status">
+              {contactStatus}
+            </p>
+          ) : null}
+          {contacts.length > 0 ? (
+            contacts.map((contact) => (
+              <article className="contact-card" key={contact.id}>
+                <div className="post-meta">
+                  <span>{contact.name}</span>
+                  <time dateTime={contact.createdAt}>{formatDate(contact.createdAt)}</time>
+                </div>
+                <div>
+                  <h3>{contact.email}</h3>
+                  <p>{contact.message}</p>
+                </div>
+                <button
+                  type="button"
+                  className="delete-post-button"
+                  onClick={() => void deleteContact(contact.id)}
+                  disabled={deletingContactId === contact.id}
+                  aria-label={`${contact.name} 문의 삭제`}
+                  title="삭제"
+                >
+                  <Trash2 aria-hidden="true" />
+                </button>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">
+              <Mail aria-hidden="true" />
+              <h3>아직 접수된 문의가 없습니다</h3>
+              <p>홈페이지 문의 폼으로 접수된 메시지가 여기에 표시됩니다.</p>
+            </div>
+          )}
+        </div>
+      </section>
     </section>
   )
 }
@@ -948,14 +1011,89 @@ function useNoticePosts() {
   return { posts, status, isSubmitting, deletingPostId, submitPost, deletePost }
 }
 
+function useContactMessages(isEnabled: boolean) {
+  const [contacts, setContacts] = useState<ContactMessage[]>([])
+  const [status, setStatus] = useState("")
+  const [deletingContactId, setDeletingContactId] = useState<string | null>(null)
+  const supabase = useMemo(() => getPortfolioSupabase(), [])
+
+  useEffect(() => {
+    if (!supabase || !isEnabled) {
+      return
+    }
+
+    const supabaseClient = supabase
+    let isMounted = true
+
+    async function loadContacts() {
+      const { data, error } = await supabaseClient
+        .from("contacts")
+        .select("id,name,email,message,source,created_at")
+        .order("created_at", { ascending: false })
+
+      if (!isMounted) {
+        return
+      }
+
+      if (error) {
+        setStatus("문의 목록을 불러오지 못했습니다. contacts RLS 정책을 확인하세요.")
+        return
+      }
+
+      setContacts(mapSupabaseContacts((data ?? []) as SupabaseContactMessage[]))
+      setStatus("")
+    }
+
+    void loadContacts()
+
+    const channel = supabaseClient
+      .channel("contacts-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "contacts" },
+        () => {
+          void loadContacts()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      isMounted = false
+      void supabaseClient.removeChannel(channel)
+    }
+  }, [isEnabled, supabase])
+
+  async function deleteContact(contactId: string) {
+    if (!supabase) {
+      return
+    }
+
+    setDeletingContactId(contactId)
+
+    const { error } = await supabase.from("contacts").delete().eq("id", contactId)
+
+    if (error) {
+      setStatus("문의 삭제에 실패했습니다. contacts 삭제 권한을 확인하세요.")
+    } else {
+      setContacts((currentContacts) => currentContacts.filter((contact) => contact.id !== contactId))
+      setStatus("문의가 삭제되었습니다.")
+    }
+
+    setDeletingContactId(null)
+  }
+
+  return { contacts, status, deletingContactId, deleteContact }
+}
+
 function ContactSection() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [message, setMessage] = useState("")
   const [status, setStatus] = useState("")
+  const [isSending, setIsSending] = useState(false)
   const isContactFormValid = name.trim() && email.trim() && message.trim()
 
-  function handleContactSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleContactSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!isContactFormValid) {
@@ -963,11 +1101,37 @@ function ContactSection() {
       return
     }
 
+    const supabase = getPortfolioSupabase()
     const subject = encodeURIComponent(`[AURORA Robotics] ${name.trim()}님의 문의`)
     const body = encodeURIComponent(`이름: ${name.trim()}\n이메일: ${email.trim()}\n\n${message.trim()}`)
 
-    setStatus("메일 앱을 열었습니다. 전송 전 내용을 확인하세요.")
-    window.location.href = `mailto:hello@aurora-robotics.example?subject=${subject}&body=${body}`
+    if (!supabase) {
+      setStatus("Supabase 설정이 없어 메일 앱으로 문의를 전환합니다.")
+      window.location.href = `mailto:hello@aurora-robotics.example?subject=${subject}&body=${body}`
+      return
+    }
+
+    setIsSending(true)
+    setStatus("")
+
+    const { error } = await supabase.from("contacts").insert({
+      name: name.trim(),
+      email: email.trim(),
+      message: message.trim(),
+      source: "website",
+    })
+
+    setIsSending(false)
+
+    if (error) {
+      setStatus("문의 저장에 실패했습니다. 잠시 후 다시 시도하거나 이메일로 문의하세요.")
+      return
+    }
+
+    setName("")
+    setEmail("")
+    setMessage("")
+    setStatus("문의가 접수되었습니다. 확인 후 연락드리겠습니다.")
   }
 
   return (
@@ -1007,9 +1171,9 @@ function ContactSection() {
           onChange={(event) => setMessage(event.target.value)}
           rows={5}
         />
-        <button type="submit">
+        <button type="submit" disabled={isSending || !isContactFormValid}>
           <Mail aria-hidden="true" />
-          문의 보내기
+          {isSending ? "전송 중" : "문의 보내기"}
         </button>
         <a className="contact-inline-link" href="#systems">
           <Factory aria-hidden="true" />
@@ -1079,6 +1243,17 @@ function mapSupabasePosts(posts: SupabasePost[]): Post[] {
     content: post.content,
     author: post.author,
     createdAt: post.created_at,
+  }))
+}
+
+function mapSupabaseContacts(contacts: SupabaseContactMessage[]): ContactMessage[] {
+  return contacts.map((contact) => ({
+    id: contact.id,
+    name: contact.name,
+    email: contact.email,
+    message: contact.message,
+    source: contact.source,
+    createdAt: contact.created_at,
   }))
 }
 

@@ -8,6 +8,15 @@ export type SupabasePost = {
   created_at: string
 }
 
+export type SupabaseContactMessage = {
+  id: string
+  name: string
+  email: string
+  message: string
+  source: string
+  created_at: string
+}
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabasePublishableKey =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY

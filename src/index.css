@@ -1238,6 +1238,54 @@ textarea:focus-visible {
   color: oklch(0.78 0.025 250);
 }
 
+.admin-contacts {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.28fr) minmax(0, 0.72fr);
+  gap: clamp(28px, 5vw, 64px);
+  border-top: 1px solid oklch(1 0 0 / 18%);
+  margin-top: clamp(52px, 7vw, 88px);
+  padding-top: 34px;
+}
+
+.admin-contacts h2 {
+  margin: 0;
+  font-size: clamp(2.2rem, 4vw, 4.6rem);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.admin-contact-list {
+  display: grid;
+  gap: 14px;
+}
+
+.contact-card {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.24fr) minmax(0, 1fr) 38px;
+  gap: clamp(18px, 4vw, 42px);
+  border: 1px solid oklch(1 0 0 / 16%);
+  border-radius: 8px;
+  background: oklch(1 0 0 / 5%);
+  padding: clamp(18px, 3vw, 26px);
+}
+
+.contact-card h3 {
+  margin: 0;
+  color: white;
+  font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.contact-card p {
+  margin: 12px 0 0;
+  color: oklch(0.78 0.025 250);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
 .contact-section {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.36fr);
@@ -1327,6 +1375,12 @@ textarea:focus-visible {
 .contact-form button:hover,
 .contact-inline-link:hover {
   transform: translateY(-2px);
+}
+
+.contact-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
 }
 
 .contact-inline-link {
@@ -1494,7 +1548,9 @@ textarea:focus-visible {
   }
 
   .admin-heading,
-  .admin-grid {
+  .admin-grid,
+  .admin-contacts,
+  .contact-card {
     grid-template-columns: 1fr;
   }
 
