@@ -37,6 +37,7 @@ type SystemItem = {
 const LOCAL_POSTS_KEY = "aurora-robotics-posts"
 const assetPath = (path: string) => `${import.meta.env.BASE_URL}${path}`.replace(/\/+/g, "/")
 const adminHash = normalizeAdminHash(import.meta.env.VITE_ADMIN_HASH)
+const adminSessionMinutes = getAdminSessionMinutes(import.meta.env.VITE_ADMIN_SESSION_MINUTES)
 
 const navItems = [
   ["Solutions", "solutions"],
@@ -514,6 +515,30 @@ function AdminPage() {
     }
   }, [supabase])
 
+  useEffect(() => {
+    if (!supabase) {
+      return
+    }
+
+    return () => {
+      void supabase.auth.signOut()
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    if (!supabase || !isAuthenticated) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void supabase.auth.signOut().then(() => {
+        setLoginMessage("관리자 세션 시간이 만료되었습니다. 다시 로그인하세요.")
+      })
+    }, adminSessionMinutes * 60 * 1000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [isAuthenticated, supabase])
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -573,7 +598,10 @@ function AdminPage() {
         <div className="admin-login-card">
           <span className="section-label">Admin Access</span>
           <h1 id="admin-login-title">관리자 로그인</h1>
-          <p>공지 게시판 글쓰기는 Supabase 관리자 계정으로 로그인한 뒤 사용할 수 있습니다.</p>
+          <p>
+            공지 게시판 글쓰기는 Supabase 관리자 계정으로 로그인한 뒤 사용할 수 있습니다. 관리자 세션은{" "}
+            {adminSessionMinutes}분 뒤 자동 종료됩니다.
+          </p>
           <form className="admin-login-form" onSubmit={handleLogin}>
             <label htmlFor="admin-email">관리자 이메일</label>
             <input
@@ -613,6 +641,7 @@ function AdminPage() {
         <div>
           <span className="section-label">Admin Console</span>
           <h1 id="admin-title">Notice Manager</h1>
+          <p className="admin-session-note">{adminSessionMinutes}분 뒤 자동 로그아웃됩니다.</p>
         </div>
         <button type="button" className="admin-logout-button" onClick={() => void handleLogout()}>
           로그아웃
@@ -874,6 +903,16 @@ function normalizeAdminHash(value: string | undefined) {
   }
 
   return trimmedValue.startsWith("#") ? trimmedValue : `#${trimmedValue}`
+}
+
+function getAdminSessionMinutes(value: string | undefined) {
+  const minutes = Number(value)
+
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return 10
+  }
+
+  return Math.max(1, Math.min(60, Math.round(minutes)))
 }
 
 export default App

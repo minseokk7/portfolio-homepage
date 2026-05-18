@@ -975,10 +975,16 @@ textarea:focus-visible {
   line-height: 0.94;
 }
 
-.admin-login-card p {
+.admin-login-card p,
+.admin-session-note {
   max-width: 620px;
   color: oklch(0.78 0.025 250);
   line-height: 1.75;
+}
+
+.admin-session-note {
+  margin: 18px 0 0;
+  font-size: 0.95rem;
 }
 
 .admin-login-form {
