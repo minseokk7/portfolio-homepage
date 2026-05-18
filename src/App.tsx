@@ -1,13 +1,13 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react"
+import { type FormEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowLeft,
   ArrowUpRight,
+  Bot,
   Factory,
   Mail,
   Menu,
   MessageSquareText,
   MoveRight,
-  Plus,
   Send,
   Trash2,
   X,
@@ -36,6 +36,7 @@ type SystemItem = {
 
 const LOCAL_POSTS_KEY = "aurora-robotics-posts"
 const assetPath = (path: string) => `${import.meta.env.BASE_URL}${path}`.replace(/\/+/g, "/")
+const adminHash = normalizeAdminHash(import.meta.env.VITE_ADMIN_HASH)
 
 const navItems = [
   ["Solutions", "solutions"],
@@ -49,7 +50,7 @@ const systems: SystemItem[] = [
   {
     slug: "factory-motion",
     name: "Factory Motion",
-    summary: "비전 인식과 협동 로봇을 연결해 반복 공정을 자동화하는 생산 라인 시스템.",
+    summary: "비전 인식과 협동 로봇을 연결한 생산 자동화 시스템.",
     detail:
       "Factory Motion은 제품 위치 인식, 로봇 팔 제어, 작업자 안전 구역 감지를 하나의 흐름으로 연결합니다. 반복 조립, 부품 정렬, 품질 검사처럼 시간이 많이 드는 공정을 안정적으로 처리하도록 설계했습니다.",
     image: assetPath("images/robot-inspection.png"),
@@ -60,7 +61,7 @@ const systems: SystemItem[] = [
   {
     slug: "campus-delivery",
     name: "Campus Delivery",
-    summary: "실내외 자율주행 로봇을 활용해 물류, 장비 이동, 캠퍼스 안내를 지원하는 플랫폼.",
+    summary: "실내외 이동과 물류 안내를 지원하는 자율주행 플랫폼.",
     detail:
       "Campus Delivery는 교육기관, 연구소, 사무 공간에서 작은 물품을 이동시키는 자율주행 로봇 서비스입니다. 지도 생성, 경로 계획, 원격 관제 화면을 포함해 실제 공간에서 운영 가능한 형태를 목표로 합니다.",
     image: assetPath("images/robot-delivery.png"),
@@ -71,7 +72,7 @@ const systems: SystemItem[] = [
   {
     slug: "inspection-core",
     name: "Inspection Core",
-    summary: "센서 데이터와 카메라를 결합해 설비 이상을 조기에 감지하는 검사 자동화 솔루션.",
+    summary: "센서와 카메라로 설비 이상을 감지하는 검사 솔루션.",
     detail:
       "Inspection Core는 카메라, 조명, 센서 데이터를 결합해 설비와 제품의 이상 징후를 확인합니다. 검사 결과는 기록으로 남고, 운영자는 문제 발생 지점을 빠르게 파악할 수 있습니다.",
     image: assetPath("images/robot-operations.png"),
@@ -97,6 +98,11 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (adminHash && route === adminHash) {
+      window.scrollTo({ top: 0, behavior: "auto" })
+      return
+    }
+
     if (route.startsWith("#detail-")) {
       window.scrollTo({ top: 0, behavior: "auto" })
       return
@@ -113,12 +119,16 @@ function App() {
 
   const detailSlug = route.startsWith("#detail-") ? route.replace("#detail-", "") : ""
   const detailSystem = systems.find((system) => system.slug === detailSlug)
+  const isAdminRoute = Boolean(adminHash && route === adminHash)
 
   return (
     <div className="site-shell">
-      <Header />
+      <CustomCursor />
+      <Header adminHash={adminHash} />
       <main>
-        {detailSystem ? (
+        {isAdminRoute ? (
+          <AdminPage />
+        ) : detailSystem ? (
           <DetailPage system={detailSystem} />
         ) : (
           <>
@@ -135,14 +145,116 @@ function App() {
   )
 }
 
-function Header() {
+function CustomCursor() {
+  const cursorRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const finePointer = window.matchMedia("(any-pointer: fine)")
+
+    if (!finePointer.matches) {
+      return
+    }
+
+    const cursor = cursorRef.current
+
+    if (!cursor) {
+      return
+    }
+
+    let animationFrame = 0
+    let x = window.innerWidth / 2
+    let y = window.innerHeight / 2
+    let isInteractive = false
+
+    const moveCursor = () => {
+      cursor.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`
+      animationFrame = 0
+    }
+
+    const requestMove = () => {
+      if (!animationFrame) {
+        animationFrame = window.requestAnimationFrame(moveCursor)
+      }
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      x = event.clientX
+      y = event.clientY
+      cursor.classList.add("is-visible")
+      requestMove()
+    }
+
+    const handlePointerOver = (event: PointerEvent) => {
+      const target = event.target instanceof Element ? event.target : null
+      const nextInteractive = Boolean(target?.closest("a, button, input, textarea, .focus-in-contract"))
+
+      if (nextInteractive !== isInteractive) {
+        isInteractive = nextInteractive
+        cursor.classList.toggle("is-interactive", nextInteractive)
+      }
+    }
+
+    const handlePointerDown = () => cursor.classList.add("is-pressed")
+    const handlePointerUp = () => cursor.classList.remove("is-pressed")
+    const handlePointerLeave = () => cursor.classList.remove("is-visible", "is-interactive", "is-pressed")
+
+    document.documentElement.classList.add("custom-cursor-enabled")
+    window.addEventListener("pointermove", handlePointerMove, { passive: true })
+    window.addEventListener("pointerover", handlePointerOver, { passive: true })
+    window.addEventListener("pointerdown", handlePointerDown, { passive: true })
+    window.addEventListener("pointerup", handlePointerUp, { passive: true })
+    document.addEventListener("mouseleave", handlePointerLeave)
+
+    return () => {
+      document.documentElement.classList.remove("custom-cursor-enabled")
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("pointerover", handlePointerOver)
+      window.removeEventListener("pointerdown", handlePointerDown)
+      window.removeEventListener("pointerup", handlePointerUp)
+      document.removeEventListener("mouseleave", handlePointerLeave)
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame)
+      }
+    }
+  }, [])
+
+  return <div className="custom-cursor" ref={cursorRef} aria-hidden="true" />
+}
+
+function Header({ adminHash }: { adminHash: string }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const adminClickRef = useRef({ count: 0, startedAt: 0 })
 
   const closeMenu = () => setIsMenuOpen(false)
 
+  const handleBrandClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    closeMenu()
+
+    if (!adminHash) {
+      return
+    }
+
+    const now = Date.now()
+    const adminClicks = adminClickRef.current
+
+    if (now - adminClicks.startedAt > 1800) {
+      adminClicks.count = 0
+      adminClicks.startedAt = now
+    }
+
+    adminClicks.count += 1
+
+    if (adminClicks.count >= 5) {
+      event.preventDefault()
+      adminClicks.count = 0
+      adminClicks.startedAt = 0
+      window.location.hash = adminHash
+    }
+  }
+
   return (
     <header className="site-header">
-      <a className="brand" href="#home" aria-label="AURORA Robotics 홈으로 이동" onClick={closeMenu}>
+      <a className="brand" href="#home" aria-label="AURORA Robotics 홈으로 이동" onClick={handleBrandClick}>
         AURORA Robotics
       </a>
       <nav className="desktop-nav" aria-label="주요 메뉴">
@@ -180,8 +292,11 @@ function HeroSection() {
     <section className="hero-section" id="home" aria-labelledby="hero-title">
       <div className="hero-field" aria-hidden="true" />
       <div className="hero-content hero-content--text-only">
-        <div>
-          <h1 id="hero-title">
+        <div className="hero-lockup">
+          <div className="hero-intro-icon" aria-hidden="true">
+            <Bot />
+          </div>
+          <h1 id="hero-title" className="focus-in-contract">
             Building Robots,
             <br />
             Moving Futures
@@ -221,7 +336,7 @@ function SystemsSection() {
     <section className="work-section" id="systems" aria-labelledby="systems-title">
       <div className="section-heading">
         <span className="section-label">Selected Systems</span>
-        <h2 id="systems-title">Robotic systems created where change becomes inevitable by design.</h2>
+        <h2 id="systems-title">Selected robotic systems.</h2>
       </div>
       <div className="system-list">
         {systems.map((system) => (
@@ -312,18 +427,274 @@ function ApproachSection() {
 }
 
 function BoardSection() {
-  const [posts, setPosts] = useState<Post[]>(() => readLocalPosts())
-  const [isComposerOpen, setIsComposerOpen] = useState(false)
+  const { posts, status } = useNoticePosts()
+  const boardStatus = status || "관리자 페이지에서 등록한 공지사항을 확인할 수 있습니다."
+
+  return (
+    <section className="news-section" id="board" aria-labelledby="board-title">
+      <div className="section-heading">
+        <span className="section-label">Notice</span>
+        <h2 id="board-title">Notice Board</h2>
+      </div>
+      <div className="board-toolbar">
+        <p>제품 소식, 시연 일정, 기술 업데이트를 한곳에서 확인합니다.</p>
+      </div>
+      <div className="board-layout">
+        <div className="post-panel" aria-live="polite">
+          {boardStatus ? (
+            <p className="form-status" role="status">
+              {boardStatus}
+            </p>
+          ) : null}
+          {posts.length > 0 ? (
+            posts.map((post) => (
+              <article className="post-card post-card--public" key={post.id}>
+                <div className="post-meta">
+                  <span>{post.author}</span>
+                </div>
+                <div className="post-content">
+                  <h3>{post.title}</h3>
+                  <p>{post.content}</p>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">
+              <MessageSquareText aria-hidden="true" />
+              <h3>아직 등록된 공지가 없습니다</h3>
+              <p>관리자 페이지에서 제품 소식, 시연 일정, 기술 업데이트를 등록할 수 있습니다.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function AdminPage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loginMessage, setLoginMessage] = useState("")
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAuthReady, setIsAuthReady] = useState(() => !isSupabaseConfigured)
   const [title, setTitle] = useState("")
   const [author, setAuthor] = useState("")
   const [content, setContent] = useState("")
+
+  const supabase = useMemo(() => getPortfolioSupabase(), [])
+  const { posts, status, isSubmitting, deletingPostId, submitPost, deletePost } = useNoticePosts()
+  const isFormValid = title.trim() && author.trim() && content.trim()
+
+  useEffect(() => {
+    if (!supabase) {
+      return
+    }
+
+    let isMounted = true
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!isMounted) {
+        return
+      }
+
+      setIsAuthenticated(Boolean(data.session))
+      setIsAuthReady(true)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(Boolean(session))
+      setIsAuthReady(true)
+    })
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [supabase])
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!supabase) {
+      setLoginMessage("Supabase 환경변수가 설정되지 않았습니다.")
+      return
+    }
+
+    if (!email.trim() || !password) {
+      setLoginMessage("관리자 이메일과 비밀번호를 입력하세요.")
+      return
+    }
+
+    setLoginMessage("")
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    })
+
+    if (error) {
+      setLoginMessage("Supabase 관리자 로그인을 확인하세요.")
+      return
+    }
+
+    setPassword("")
+  }
+
+  async function handleLogout() {
+    await supabase?.auth.signOut()
+    setPassword("")
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const ok = await submitPost({
+      title: title.trim(),
+      author: author.trim(),
+      content: content.trim(),
+    })
+
+    if (ok) {
+      setTitle("")
+      setAuthor("")
+      setContent("")
+    }
+  }
+
+  if (!isAuthReady || !isAuthenticated) {
+    return (
+      <section className="admin-page" aria-labelledby="admin-login-title">
+        <a className="back-link" href="#home">
+          <ArrowLeft aria-hidden="true" />
+          홈으로 돌아가기
+        </a>
+        <div className="admin-login-card">
+          <span className="section-label">Admin Access</span>
+          <h1 id="admin-login-title">관리자 로그인</h1>
+          <p>공지 게시판 글쓰기는 Supabase 관리자 계정으로 로그인한 뒤 사용할 수 있습니다.</p>
+          <form className="admin-login-form" onSubmit={handleLogin}>
+            <label htmlFor="admin-email">관리자 이메일</label>
+            <input
+              id="admin-email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="username"
+            />
+            <label htmlFor="admin-password">관리자 비밀번호</label>
+            <input
+              id="admin-password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+            />
+            <button type="submit">관리자 페이지 열기</button>
+          </form>
+          {loginMessage ? (
+            <p className="form-status" role="status">
+              {loginMessage}
+            </p>
+          ) : null}
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="admin-page" aria-labelledby="admin-title">
+      <a className="back-link" href="#board">
+        <ArrowLeft aria-hidden="true" />
+        게시판으로 돌아가기
+      </a>
+      <div className="admin-heading">
+        <div>
+          <span className="section-label">Admin Console</span>
+          <h1 id="admin-title">Notice Manager</h1>
+        </div>
+        <button type="button" className="admin-logout-button" onClick={() => void handleLogout()}>
+          로그아웃
+        </button>
+      </div>
+      <div className="admin-grid">
+        <form className="board-form admin-compose" onSubmit={handleSubmit}>
+          <label htmlFor="post-title">공지 제목</label>
+          <input
+            id="post-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="예: 자율주행 로봇 데모 공개"
+          />
+          <label htmlFor="post-author">작성자</label>
+          <input
+            id="post-author"
+            value={author}
+            onChange={(event) => setAuthor(event.target.value)}
+            placeholder="AURORA Lab"
+          />
+          <label htmlFor="post-content">내용</label>
+          <textarea
+            id="post-content"
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder="공지 내용을 입력하세요"
+            rows={7}
+          />
+          <button type="submit" disabled={isSubmitting || !isFormValid}>
+            <Send aria-hidden="true" />
+            {isSubmitting ? "등록 중" : "공지 등록"}
+          </button>
+        </form>
+        <div className="admin-posts" aria-live="polite">
+          {status ? (
+            <p className="form-status" role="status">
+              {status}
+            </p>
+          ) : null}
+          {posts.length > 0 ? (
+            posts.map((post) => (
+              <article className="post-card" key={post.id}>
+                <div className="post-meta">
+                  <span>{post.author}</span>
+                </div>
+                <div className="post-content">
+                  <h3>{post.title}</h3>
+                  <p>{post.content}</p>
+                </div>
+                <button
+                  type="button"
+                  className="delete-post-button"
+                  onClick={() => void deletePost(post.id)}
+                  disabled={deletingPostId === post.id}
+                  aria-label={`${post.title} 삭제`}
+                  title="삭제"
+                >
+                  <Trash2 aria-hidden="true" />
+                </button>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">
+              <MessageSquareText aria-hidden="true" />
+              <h3>아직 등록된 공지가 없습니다</h3>
+              <p>왼쪽 작성 영역에서 첫 공지를 등록할 수 있습니다.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function useNoticePosts() {
+  const [posts, setPosts] = useState<Post[]>(() => readLocalPosts())
   const [status, setStatus] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null)
 
   const supabase = useMemo(() => getPortfolioSupabase(), [])
-  const isFormValid = title.trim() && author.trim() && content.trim()
-  const boardStatus = status || (!supabase ? "이 브라우저에 임시 저장되는 로컬 게시판으로 동작합니다." : "")
 
   useEffect(() => {
     if (!supabase) {
@@ -375,12 +746,10 @@ function BoardSection() {
     }
   }, [supabase])
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    if (!isFormValid) {
+  async function submitPost(postInput: Pick<Post, "title" | "author" | "content">) {
+    if (!postInput.title || !postInput.author || !postInput.content) {
       setStatus("제목, 작성자, 내용을 모두 입력하세요.")
-      return
+      return false
     }
 
     setIsSubmitting(true)
@@ -388,9 +757,9 @@ function BoardSection() {
 
     const newPost: Post = {
       id: crypto.randomUUID(),
-      title: title.trim(),
-      author: author.trim(),
-      content: content.trim(),
+      title: postInput.title,
+      author: postInput.author,
+      content: postInput.content,
       createdAt: new Date().toISOString(),
     }
 
@@ -414,18 +783,16 @@ function BoardSection() {
         setStatus("로컬 공지 게시판에 게시글이 등록되었습니다.")
       }
 
-      setTitle("")
-      setAuthor("")
-      setContent("")
-      setIsComposerOpen(false)
+      return true
     } catch {
       setStatus("등록에 실패했습니다. Supabase 테이블과 권한을 확인하세요.")
+      return false
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  async function handleDelete(postId: string) {
+  async function deletePost(postId: string) {
     if (!window.confirm("이 공지를 삭제할까요?")) {
       return
     }
@@ -456,119 +823,7 @@ function BoardSection() {
     }
   }
 
-  return (
-    <section className="news-section" id="board" aria-labelledby="board-title">
-      <div className="section-heading">
-        <span className="section-label">Notice</span>
-        <h2 id="board-title">Notice Board</h2>
-      </div>
-      <div className="board-toolbar">
-        <p>제품 소식, 시연 일정, 기술 업데이트를 한곳에서 확인합니다.</p>
-        <button
-          type="button"
-          className="compose-toggle"
-          onClick={() => setIsComposerOpen((isOpen) => !isOpen)}
-          aria-expanded={isComposerOpen}
-          aria-controls="board-composer"
-        >
-          {isComposerOpen ? <X aria-hidden="true" /> : <Plus aria-hidden="true" />}
-          {isComposerOpen ? "닫기" : "글쓰기"}
-        </button>
-      </div>
-      {isComposerOpen ? (
-        <div className="modal-backdrop" role="presentation">
-          <div
-            className="board-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="composer-title"
-            id="board-composer"
-          >
-            <div className="modal-header">
-              <div>
-                <span className="section-label">Write Notice</span>
-                <h3 id="composer-title">공지 글쓰기</h3>
-              </div>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => setIsComposerOpen(false)}
-                aria-label="글쓰기 창 닫기"
-              >
-                <X aria-hidden="true" />
-              </button>
-            </div>
-            <form className="board-form" onSubmit={handleSubmit}>
-              <label htmlFor="post-title">공지 제목</label>
-              <input
-                id="post-title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="예: 자율주행 로봇 데모 공개"
-              />
-              <label htmlFor="post-author">작성자</label>
-              <input
-                id="post-author"
-                value={author}
-                onChange={(event) => setAuthor(event.target.value)}
-                placeholder="AURORA Lab"
-              />
-              <label htmlFor="post-content">내용</label>
-              <textarea
-                id="post-content"
-                value={content}
-                onChange={(event) => setContent(event.target.value)}
-                placeholder="공지 내용을 입력하세요"
-                rows={6}
-              />
-              <button type="submit" disabled={isSubmitting}>
-                <Send aria-hidden="true" />
-                {isSubmitting ? "등록 중" : "공지 등록"}
-              </button>
-            </form>
-          </div>
-        </div>
-      ) : null}
-      <div className="board-layout">
-        <div className="post-panel" aria-live="polite">
-          {boardStatus ? (
-            <p className="form-status" role="status">
-              {boardStatus}
-            </p>
-          ) : null}
-          {posts.length > 0 ? (
-            posts.map((post) => (
-              <article className="post-card" key={post.id}>
-                <div className="post-meta">
-                  <span>{post.author}</span>
-                </div>
-                <div className="post-content">
-                  <h3>{post.title}</h3>
-                  <p>{post.content}</p>
-                </div>
-                <button
-                  type="button"
-                  className="delete-post-button"
-                  onClick={() => void handleDelete(post.id)}
-                  disabled={deletingPostId === post.id}
-                  aria-label={`${post.title} 삭제`}
-                  title="삭제"
-                >
-                  <Trash2 aria-hidden="true" />
-                </button>
-              </article>
-            ))
-          ) : (
-            <div className="empty-state">
-              <MessageSquareText aria-hidden="true" />
-              <h3>아직 등록된 공지가 없습니다</h3>
-              <p>글쓰기 버튼을 눌러 제품 소식, 시연 일정, 기술 업데이트를 등록할 수 있습니다.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
-  )
+  return { posts, status, isSubmitting, deletingPostId, submitPost, deletePost }
 }
 
 function ContactSection() {
@@ -609,6 +864,16 @@ function mapSupabasePosts(posts: SupabasePost[]): Post[] {
     author: post.author,
     createdAt: post.created_at,
   }))
+}
+
+function normalizeAdminHash(value: string | undefined) {
+  const trimmedValue = value?.trim()
+
+  if (!trimmedValue) {
+    return ""
+  }
+
+  return trimmedValue.startsWith("#") ? trimmedValue : `#${trimmedValue}`
 }
 
 export default App
