@@ -332,7 +332,7 @@ function AmbitionSection() {
   return (
     <section className="statement-section" id="solutions" aria-labelledby="solutions-title">
       <span className="section-label">Purpose</span>
-      <h2 id="solutions-title">We exist to make useful robots possible.</h2>
+      <h2 id="solutions-title">Useful robots for real-world work.</h2>
       <div className="statement-grid">
         <p>
           AURORA Robotics는 단순히 로봇을 소개하는 회사가 아니라, 문제를 정의하고 자동화 구조를 설계한 뒤
@@ -427,7 +427,7 @@ function ApproachSection() {
     <section className="approach-section" id="approach" aria-labelledby="approach-title">
       <div>
         <span className="section-label">Approach</span>
-        <h2 id="approach-title">Growing robotics by redefining operation.</h2>
+        <h2 id="approach-title">Robotics shaped around real operations.</h2>
       </div>
       <div className="approach-copy">
         <p>

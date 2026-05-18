@@ -486,6 +486,11 @@ textarea:focus-visible {
   background: oklch(0.97 0.01 251);
 }
 
+.statement-section h2 {
+  max-width: 920px;
+  font-size: clamp(3.6rem, 6vw, 6.6rem);
+}
+
 .section-label {
   display: block;
   margin-bottom: 16px;
@@ -654,9 +659,16 @@ textarea:focus-visible {
 
 .approach-section {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(280px, 0.55fr);
+  grid-template-columns: minmax(0, 0.82fr) minmax(340px, 0.58fr);
   gap: clamp(32px, 7vw, 120px);
+  align-items: center;
   background: oklch(0.94 0.018 251);
+}
+
+.approach-section h2 {
+  max-width: 900px;
+  font-size: clamp(3.4rem, 5.7vw, 6.4rem);
+  line-height: 1;
 }
 
 .approach-copy {
