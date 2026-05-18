@@ -1,4 +1,5 @@
 import { type FormEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -25,6 +26,8 @@ type Post = {
   title: string
   content: string
   author: string
+  imageUrl?: string | null
+  imagePath?: string | null
   createdAt?: string
 }
 
@@ -55,6 +58,9 @@ type ContactMessage = {
 
 const LOCAL_POSTS_KEY = "aurora-robotics-posts"
 const ADMIN_RATE_LIMIT_KEY = "aurora-admin-rate-limit"
+const NOTICE_IMAGE_BUCKET = "notice-images"
+const NOTICE_IMAGE_MAX_SIZE = 2 * 1024 * 1024
+const NOTICE_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"]
 const assetPath = (path: string) => `${import.meta.env.BASE_URL}${path}`.replace(/\/+/g, "/")
 const adminHash = normalizeAdminHash(import.meta.env.VITE_ADMIN_HASH)
 const adminSessionMinutes = getAdminSessionMinutes(import.meta.env.VITE_ADMIN_SESSION_MINUTES)
@@ -479,7 +485,15 @@ function BoardSection() {
           ) : null}
           {posts.length > 0 ? (
             posts.map((post) => (
-              <article className="post-card post-card--public" key={post.id}>
+              <article
+                className={`post-card post-card--public${post.imageUrl ? " post-card--with-image" : ""}`}
+                key={post.id}
+              >
+                {post.imageUrl ? (
+                  <figure className="post-thumb">
+                    <img src={post.imageUrl} alt={`${post.title} 공지 이미지`} />
+                  </figure>
+                ) : null}
                 <div className="post-meta">
                   <span>{post.author}</span>
                   {post.createdAt ? <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time> : null}
@@ -525,6 +539,11 @@ function NoticeDetailPage({ postId }: { postId: string }) {
               {post.createdAt ? <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time> : null}
             </div>
           </div>
+          {post.imageUrl ? (
+            <figure className="notice-detail-image">
+              <img src={post.imageUrl} alt={`${post.title} 공지 이미지`} />
+            </figure>
+          ) : null}
           <article className="notice-detail-body">
             {post.content.split("\n").map((line, index) => (
               <p key={`${post.id}-${index}`}>{line || "\u00a0"}</p>
@@ -553,6 +572,10 @@ function AdminPage() {
   const [title, setTitle] = useState("")
   const [author, setAuthor] = useState("")
   const [content, setContent] = useState("")
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState("")
+  const [imageMessage, setImageMessage] = useState("")
+  const [imageInputKey, setImageInputKey] = useState(0)
 
   const supabase = useMemo(() => getPortfolioSupabase(), [])
   const { posts, status, isSubmitting, deletingPostId, submitPost, deletePost } = useNoticePosts()
@@ -632,6 +655,14 @@ function AdminPage() {
     return () => window.clearInterval(intervalId)
   }, [isLoginLocked])
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview)
+      }
+    }
+  }, [imagePreview])
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -690,13 +721,47 @@ function AdminPage() {
       title: title.trim(),
       author: author.trim(),
       content: content.trim(),
+      imageFile,
     })
 
     if (ok) {
       setTitle("")
       setAuthor("")
       setContent("")
+      setImageFile(null)
+      setImagePreview("")
+      setImageMessage("")
+      setImageInputKey((currentKey) => currentKey + 1)
     }
+  }
+
+  function handleImageChange(event: FormEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0] ?? null
+
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview)
+    }
+
+    if (!file) {
+      setImageFile(null)
+      setImagePreview("")
+      setImageMessage("")
+      return
+    }
+
+    const validationMessage = validateNoticeImage(file)
+
+    if (validationMessage) {
+      setImageFile(null)
+      setImagePreview("")
+      setImageMessage(validationMessage)
+      setImageInputKey((currentKey) => currentKey + 1)
+      return
+    }
+
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+    setImageMessage(`${file.name} 선택됨`)
   }
 
   if (!isAuthReady || !isAuthenticated) {
@@ -784,6 +849,27 @@ function AdminPage() {
             placeholder="공지 내용을 입력하세요"
             rows={7}
           />
+          <label htmlFor="post-image">공지 이미지</label>
+          <div className="image-upload-field">
+            <input
+              key={imageInputKey}
+              id="post-image"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={handleImageChange}
+            />
+            <p>PNG, JPG, WebP 이미지만 가능하며 최대 2MB까지 업로드됩니다.</p>
+            {imagePreview ? (
+              <figure className="image-upload-preview">
+                <img src={imagePreview} alt="선택한 공지 이미지 미리보기" />
+              </figure>
+            ) : null}
+            {imageMessage ? (
+              <p className="image-upload-status" role="status">
+                {imageMessage}
+              </p>
+            ) : null}
+          </div>
           <button type="submit" disabled={isSubmitting || !isFormValid}>
             <Send aria-hidden="true" />
             {isSubmitting ? "등록 중" : "공지 등록"}
@@ -797,7 +883,12 @@ function AdminPage() {
           ) : null}
           {posts.length > 0 ? (
             posts.map((post) => (
-              <article className="post-card" key={post.id}>
+              <article className={`post-card${post.imageUrl ? " post-card--with-image" : ""}`} key={post.id}>
+                {post.imageUrl ? (
+                  <figure className="post-thumb">
+                    <img src={post.imageUrl} alt={`${post.title} 공지 이미지`} />
+                  </figure>
+                ) : null}
                 <div className="post-meta">
                   <span>{post.author}</span>
                 </div>
@@ -892,7 +983,7 @@ function useNoticePosts() {
     async function loadPosts() {
       const { data, error } = await supabaseClient
         .from("posts")
-        .select("id,title,content,author,created_at")
+        .select("id,title,content,author,image_url,image_path,created_at")
         .order("created_at", { ascending: false })
 
       if (!isMounted) {
@@ -931,10 +1022,19 @@ function useNoticePosts() {
     }
   }, [supabase])
 
-  async function submitPost(postInput: Pick<Post, "title" | "author" | "content">) {
+  async function submitPost(postInput: Pick<Post, "title" | "author" | "content"> & { imageFile?: File | null }) {
     if (!postInput.title || !postInput.author || !postInput.content) {
       setStatus("제목, 작성자, 내용을 모두 입력하세요.")
       return false
+    }
+
+    if (postInput.imageFile) {
+      const validationMessage = validateNoticeImage(postInput.imageFile)
+
+      if (validationMessage) {
+        setStatus(validationMessage)
+        return false
+      }
     }
 
     setIsSubmitting(true)
@@ -947,21 +1047,41 @@ function useNoticePosts() {
       content: postInput.content,
       createdAt: new Date().toISOString(),
     }
+    let uploadedImagePath = ""
 
     try {
       if (supabase && isSupabaseConfigured) {
+        if (postInput.imageFile) {
+          const uploadedImage = await uploadNoticeImage(supabase, newPost.id, postInput.imageFile)
+          newPost.imageUrl = uploadedImage.imageUrl
+          newPost.imagePath = uploadedImage.imagePath
+          uploadedImagePath = uploadedImage.imagePath
+        }
+
         const { error } = await supabase.from("posts").insert({
+          id: newPost.id,
           title: newPost.title,
           author: newPost.author,
           content: newPost.content,
+          image_url: newPost.imageUrl ?? null,
+          image_path: newPost.imagePath ?? null,
         })
 
         if (error) {
+          if (uploadedImagePath) {
+            await supabase.storage.from(NOTICE_IMAGE_BUCKET).remove([uploadedImagePath])
+          }
+
           throw error
         }
 
         setStatus("공지 게시글이 등록되었습니다.")
       } else {
+        if (postInput.imageFile) {
+          setStatus("이미지 업로드는 Supabase 연결 환경에서만 사용할 수 있습니다.")
+          return false
+        }
+
         const nextPosts = [newPost, ...posts]
         setPosts(nextPosts)
         localStorage.setItem(LOCAL_POSTS_KEY, JSON.stringify(nextPosts))
@@ -987,10 +1107,15 @@ function useNoticePosts() {
 
     try {
       if (supabase && isSupabaseConfigured) {
+        const targetPost = posts.find((post) => post.id === postId)
         const { error } = await supabase.from("posts").delete().eq("id", postId)
 
         if (error) {
           throw error
+        }
+
+        if (targetPost?.imagePath) {
+          await supabase.storage.from(NOTICE_IMAGE_BUCKET).remove([targetPost.imagePath])
         }
 
         setPosts((currentPosts) => currentPosts.filter((post) => post.id !== postId))
@@ -1009,6 +1134,50 @@ function useNoticePosts() {
   }
 
   return { posts, status, isSubmitting, deletingPostId, submitPost, deletePost }
+}
+
+async function uploadNoticeImage(supabase: SupabaseClient, postId: string, file: File) {
+  const extension = getNoticeImageExtension(file)
+  const imagePath = `${postId}/${crypto.randomUUID()}.${extension}`
+  const { error } = await supabase.storage.from(NOTICE_IMAGE_BUCKET).upload(imagePath, file, {
+    cacheControl: "3600",
+    contentType: file.type,
+    upsert: false,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(NOTICE_IMAGE_BUCKET).getPublicUrl(imagePath)
+
+  return { imagePath, imageUrl: publicUrl }
+}
+
+function validateNoticeImage(file: File) {
+  if (!NOTICE_IMAGE_TYPES.includes(file.type)) {
+    return "PNG, JPG, WebP 이미지만 업로드할 수 있습니다."
+  }
+
+  if (file.size > NOTICE_IMAGE_MAX_SIZE) {
+    return "이미지는 2MB 이하로 업로드하세요."
+  }
+
+  return ""
+}
+
+function getNoticeImageExtension(file: File) {
+  if (file.type === "image/png") {
+    return "png"
+  }
+
+  if (file.type === "image/webp") {
+    return "webp"
+  }
+
+  return "jpg"
 }
 
 function useContactMessages(isEnabled: boolean) {
@@ -1242,6 +1411,8 @@ function mapSupabasePosts(posts: SupabasePost[]): Post[] {
     title: post.title,
     content: post.content,
     author: post.author,
+    imageUrl: post.image_url,
+    imagePath: post.image_path,
     createdAt: post.created_at,
   }))
 }
