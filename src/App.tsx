@@ -34,10 +34,18 @@ type SystemItem = {
   specs: string[]
 }
 
+type AdminRateLimit = {
+  attempts: number
+  lockedUntil: number
+}
+
 const LOCAL_POSTS_KEY = "aurora-robotics-posts"
+const ADMIN_RATE_LIMIT_KEY = "aurora-admin-rate-limit"
 const assetPath = (path: string) => `${import.meta.env.BASE_URL}${path}`.replace(/\/+/g, "/")
 const adminHash = normalizeAdminHash(import.meta.env.VITE_ADMIN_HASH)
 const adminSessionMinutes = getAdminSessionMinutes(import.meta.env.VITE_ADMIN_SESSION_MINUTES)
+const adminLoginMaxAttempts = getPositiveInteger(import.meta.env.VITE_ADMIN_LOGIN_MAX_ATTEMPTS, 5, 1, 10)
+const adminLoginLockoutMinutes = getPositiveInteger(import.meta.env.VITE_ADMIN_LOGIN_LOCKOUT_MINUTES, 15, 1, 60)
 
 const navItems = [
   ["Solutions", "solutions"],
@@ -478,6 +486,8 @@ function AdminPage() {
   const [loginMessage, setLoginMessage] = useState("")
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isAuthReady, setIsAuthReady] = useState(() => !isSupabaseConfigured)
+  const [rateLimit, setRateLimit] = useState(() => readAdminRateLimit())
+  const [now, setNow] = useState(() => Date.now())
   const [title, setTitle] = useState("")
   const [author, setAuthor] = useState("")
   const [content, setContent] = useState("")
@@ -485,6 +495,9 @@ function AdminPage() {
   const supabase = useMemo(() => getPortfolioSupabase(), [])
   const { posts, status, isSubmitting, deletingPostId, submitPost, deletePost } = useNoticePosts()
   const isFormValid = title.trim() && author.trim() && content.trim()
+  const lockoutRemainingMs = Math.max(0, rateLimit.lockedUntil - now)
+  const isLoginLocked = lockoutRemainingMs > 0
+  const remainingAttempts = Math.max(0, adminLoginMaxAttempts - rateLimit.attempts)
 
   useEffect(() => {
     if (!supabase) {
@@ -539,11 +552,28 @@ function AdminPage() {
     return () => window.clearTimeout(timeoutId)
   }, [isAuthenticated, supabase])
 
+  useEffect(() => {
+    if (!isLoginLocked) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      setNow(Date.now())
+    }, 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [isLoginLocked])
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!supabase) {
       setLoginMessage("Supabase 환경변수가 설정되지 않았습니다.")
+      return
+    }
+
+    if (isLoginLocked) {
+      setLoginMessage(`로그인 시도가 너무 많습니다. ${formatRemainingTime(lockoutRemainingMs)} 후 다시 시도하세요.`)
       return
     }
 
@@ -560,10 +590,23 @@ function AdminPage() {
     })
 
     if (error) {
-      setLoginMessage("Supabase 관리자 로그인을 확인하세요.")
+      const nextRateLimit = recordFailedAdminLogin(rateLimit)
+      setRateLimit(nextRateLimit)
+
+      if (nextRateLimit.lockedUntil > Date.now()) {
+        setNow(Date.now())
+        setLoginMessage(
+          `로그인 실패가 ${adminLoginMaxAttempts}회 누적되어 ${adminLoginLockoutMinutes}분 동안 잠겼습니다.`,
+        )
+      } else {
+        setLoginMessage(`Supabase 관리자 로그인을 확인하세요. 남은 시도: ${Math.max(0, remainingAttempts - 1)}회`)
+      }
+
       return
     }
 
+    clearAdminRateLimit()
+    setRateLimit(readAdminRateLimit())
     setPassword("")
   }
 
@@ -619,7 +662,9 @@ function AdminPage() {
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
             />
-            <button type="submit">관리자 페이지 열기</button>
+            <button type="submit" disabled={isLoginLocked}>
+              {isLoginLocked ? `${formatRemainingTime(lockoutRemainingMs)} 후 재시도` : "관리자 페이지 열기"}
+            </button>
           </form>
           {loginMessage ? (
             <p className="form-status" role="status">
@@ -885,6 +930,44 @@ function readLocalPosts(): Post[] {
   }
 }
 
+function readAdminRateLimit(): AdminRateLimit {
+  try {
+    const rawRateLimit = localStorage.getItem(ADMIN_RATE_LIMIT_KEY)
+
+    if (!rawRateLimit) {
+      return { attempts: 0, lockedUntil: 0 }
+    }
+
+    const parsedRateLimit = JSON.parse(rawRateLimit) as Partial<AdminRateLimit>
+    const nextRateLimit = {
+      attempts: Number(parsedRateLimit.attempts) || 0,
+      lockedUntil: Number(parsedRateLimit.lockedUntil) || 0,
+    }
+
+    if (nextRateLimit.lockedUntil <= Date.now()) {
+      clearAdminRateLimit()
+      return { attempts: 0, lockedUntil: 0 }
+    }
+
+    return nextRateLimit
+  } catch {
+    return { attempts: 0, lockedUntil: 0 }
+  }
+}
+
+function recordFailedAdminLogin(currentRateLimit: AdminRateLimit): AdminRateLimit {
+  const attempts = currentRateLimit.lockedUntil > 0 && currentRateLimit.lockedUntil <= Date.now() ? 1 : currentRateLimit.attempts + 1
+  const lockedUntil = attempts >= adminLoginMaxAttempts ? Date.now() + adminLoginLockoutMinutes * 60 * 1000 : 0
+  const nextRateLimit = { attempts, lockedUntil }
+
+  localStorage.setItem(ADMIN_RATE_LIMIT_KEY, JSON.stringify(nextRateLimit))
+  return nextRateLimit
+}
+
+function clearAdminRateLimit() {
+  localStorage.removeItem(ADMIN_RATE_LIMIT_KEY)
+}
+
 function mapSupabasePosts(posts: SupabasePost[]): Post[] {
   return posts.map((post) => ({
     id: post.id,
@@ -906,13 +989,29 @@ function normalizeAdminHash(value: string | undefined) {
 }
 
 function getAdminSessionMinutes(value: string | undefined) {
-  const minutes = Number(value)
+  return getPositiveInteger(value, 10, 1, 60)
+}
 
-  if (!Number.isFinite(minutes) || minutes <= 0) {
-    return 10
+function getPositiveInteger(value: string | undefined, fallback: number, min: number, max: number) {
+  const parsedValue = Number(value)
+
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return fallback
   }
 
-  return Math.max(1, Math.min(60, Math.round(minutes)))
+  return Math.max(min, Math.min(max, Math.round(parsedValue)))
+}
+
+function formatRemainingTime(milliseconds: number) {
+  const totalSeconds = Math.max(1, Math.ceil(milliseconds / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+
+  if (minutes <= 0) {
+    return `${seconds}초`
+  }
+
+  return `${minutes}분 ${seconds.toString().padStart(2, "0")}초`
 }
 
 export default App
