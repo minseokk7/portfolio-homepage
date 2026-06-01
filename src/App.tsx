@@ -21,6 +21,7 @@ import {
   type SupabasePost,
 } from "@/lib/supabase"
 import { RoboticArmVisualizer } from "@/components/robotic-arm-visualizer"
+import { InspectionCoreVisualizer } from "@/components/inspection-core-visualizer"
 
 type Post = {
   id: string
@@ -416,6 +417,8 @@ function DetailPage({ system }: { system: SystemItem }) {
         </div>
         {system.slug === "factory-motion" ? (
           <RoboticArmVisualizer />
+        ) : system.slug === "inspection-core" ? (
+          <InspectionCoreVisualizer />
         ) : (
           <figure className="detail-visual">
             <img src={system.image} alt={system.imageAlt} />
