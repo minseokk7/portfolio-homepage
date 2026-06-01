@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { Sliders, Cpu, Activity, AlertTriangle, ShieldAlert, Check, RefreshCw, RotateCcw } from "lucide-react"
 import * as THREE from "three"
+// @ts-ignore
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
 
 type AMRMode = "idle" | "delivering" | "obstacle-avoiding" | "returning" | "estop"
 
@@ -47,7 +49,7 @@ export function CampusDeliveryVisualizer() {
     setConsoleLogs((prev) => [`[${time}] ${msg}`, ...prev.slice(0, 14)])
   }
 
-  // 1. HTML5 2D Canvas 실시간 360도 LiDAR Radar 스코프
+  // 1. 📡 HTML5 2D Canvas 실시간 360도 초고감도 LiDAR Radar HUD 스코프
   useEffect(() => {
     if (!canvasRadarRef.current) return
     const canvas = canvasRadarRef.current
@@ -68,31 +70,33 @@ export function CampusDeliveryVisualizer() {
     let scanDots: ScanDot[] = []
 
     const drawRadar = () => {
-      sweepAngle += 0.05
+      sweepAngle += 0.045
       if (sweepAngle >= Math.PI * 2) sweepAngle = 0
 
-      ctx.clearRect(0, 0, width, height)
+      // 잔상(Phosphor Decay) 효과를 위한 어두운 투명 백그라운드 피막
+      ctx.fillStyle = "rgba(7, 10, 20, 0.24)"
+      ctx.fillRect(0, 0, width, height)
 
       const cx = width / 2
       const cy = height / 2
-      const radius = Math.min(width, height) / 2 - 10
+      const radius = Math.min(width, height) / 2 - 8
 
-      // A. 레이더 스크린 백그라운드 원판 그리기
-      ctx.fillStyle = "#0c101b"
+      // A. 레이더 스크린 백그라운드 원판 및 미세 사이버네틱 HUD 격자망
+      ctx.fillStyle = "rgba(7, 10, 20, 0.15)"
       ctx.beginPath()
       ctx.arc(cx, cy, radius, 0, Math.PI * 2)
       ctx.fill()
 
-      // 동심원 방위 계측선 그리기
-      ctx.strokeStyle = "rgba(0, 240, 255, 0.12)"
+      // 동심원 방위 계측선 그리기 (네온 블루 페이드 스타일)
+      ctx.strokeStyle = "rgba(0, 240, 255, 0.08)"
       ctx.lineWidth = 1
-      for (let r = radius / 3; r <= radius; r += radius / 3) {
+      for (let r = radius / 4; r <= radius; r += radius / 4) {
         ctx.beginPath()
         ctx.arc(cx, cy, r, 0, Math.PI * 2)
         ctx.stroke()
       }
 
-      // 십자 축 십자선
+      // 십자 방위각 가이드 라인
       ctx.beginPath()
       ctx.moveTo(cx - radius, cy)
       ctx.lineTo(cx + radius, cy)
@@ -100,41 +104,53 @@ export function CampusDeliveryVisualizer() {
       ctx.lineTo(cx, cy + radius)
       ctx.stroke()
 
-      // B. 레이저 스위프 빔 그리기
+      // 방위 눈금선 (30도 간격)
+      ctx.strokeStyle = "rgba(0, 240, 255, 0.03)"
+      for (let i = 0; i < 12; i++) {
+        const angle = (i * Math.PI) / 6
+        ctx.beginPath()
+        ctx.moveTo(cx, cy)
+        ctx.lineTo(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle))
+        ctx.stroke()
+      }
+
+      // B. 레이저 스위프 빔 그리기 (네온 부드러운 그라데이션)
       const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius)
-      grad.addColorStop(0, "rgba(0, 240, 255, 0.25)")
-      grad.addColorStop(0.8, "rgba(0, 240, 255, 0.08)")
+      grad.addColorStop(0, "rgba(0, 240, 255, 0.28)")
+      grad.addColorStop(0.7, "rgba(0, 240, 255, 0.06)")
       grad.addColorStop(1, "rgba(0, 240, 255, 0)")
 
       ctx.strokeStyle = grad
       ctx.fillStyle = grad
       ctx.beginPath()
       ctx.moveTo(cx, cy)
-      ctx.arc(cx, cy, radius, sweepAngle - 0.25, sweepAngle, false)
+      ctx.arc(cx, cy, radius, sweepAngle - 0.22, sweepAngle, false)
       ctx.closePath()
       ctx.fill()
 
-      // 레이저 스위프 선단 선
-      ctx.strokeStyle = "rgba(0, 240, 255, 0.6)"
-      ctx.lineWidth = 1.5
+      // 레이저 빔 선단
+      ctx.shadowColor = "rgba(0, 240, 255, 0.9)"
+      ctx.shadowBlur = 6
+      ctx.strokeStyle = "rgba(0, 240, 255, 0.7)"
+      ctx.lineWidth = 1.8
       ctx.beginPath()
       ctx.moveTo(cx, cy)
       ctx.lineTo(cx + radius * Math.cos(sweepAngle), cy + radius * Math.sin(sweepAngle))
       ctx.stroke()
+      ctx.shadowBlur = 0 // 섀도우 블러 리셋
 
       // C. 가상 라이다 감지 스캐닝 점 생성 및 렌더링
       const activeObstacle = obstacleActiveRef.current
       const curAMR = amrPositionRef.current
       const curObs = obstaclePositionRef.current
 
-      // 스위프 빔 각도에 따라 장애물 감지 점 추가
+      // 스위프 빔 각도에 따라 장애물 감지 점 추가 (상대 각도 arctan2 계산 모델)
       const angleToObs = Math.atan2(curObs.z - curAMR.z, curObs.x - curAMR.x)
       const normalizedAngle = angleToObs < 0 ? angleToObs + Math.PI * 2 : angleToObs
 
-      if (activeObstacle && Math.abs(sweepAngle - normalizedAngle) < 0.06) {
+      if (activeObstacle && Math.abs(sweepAngle - normalizedAngle) < 0.05) {
         const dist = Math.sqrt(Math.pow(curObs.x - curAMR.x, 2) + Math.pow(curObs.z - curAMR.z, 2))
-        // 3D 맵 스케일 최대 4.0 유닛을 레이더 스케일에 매핑
-        const distRatio = Math.min(dist / 3.0, 1.0)
+        const distRatio = Math.min(dist / 3.2, 1.0)
         scanDots.push({
           angle: normalizedAngle,
           distRatio,
@@ -143,49 +159,52 @@ export function CampusDeliveryVisualizer() {
         })
       }
 
-      // 무작위 스마트 빌딩 벽체 레이저 리플렉션 점 생성 (라이다 신뢰성 부각용)
-      if (Math.random() < 0.22) {
+      // 무작위 스마트 빌딩 벽체 레이저 리플렉션 점 생성 (라이다 신뢰성 연출)
+      if (Math.random() < 0.24) {
         const boundaryAngle = sweepAngle
-        const distRatio = 0.72 + Math.random() * 0.15
+        const distRatio = 0.75 + Math.random() * 0.16
         scanDots.push({
           angle: boundaryAngle,
           distRatio,
-          life: 0.85,
+          life: 0.82,
           isObstacle: false
         })
       }
 
       // 스캔 점 드로잉 및 디케이(생명력 감쇠) 처리
       scanDots.forEach((dot) => {
-        dot.life -= 0.015
+        dot.life -= 0.016
         if (dot.life <= 0) return
 
         const dotX = cx + radius * dot.distRatio * Math.cos(dot.angle)
         const dotY = cy + radius * dot.distRatio * Math.sin(dot.angle)
 
+        ctx.shadowColor = dot.isObstacle ? "rgba(239, 68, 68, 0.9)" : "rgba(0, 240, 255, 0.5)"
+        ctx.shadowBlur = dot.isObstacle ? 8 : 4
         ctx.fillStyle = dot.isObstacle
-          ? `rgba(239, 68, 68, ${dot.life})` // 불량/장애물 점은 붉은색
-          : `rgba(0, 240, 255, ${dot.life * 0.6})` // 벽체는 연한 네온
+          ? `rgba(239, 68, 68, ${dot.life})` // 장애물: 적색 네온
+          : `rgba(0, 240, 255, ${dot.life * 0.65})` // 일반 벽체: 사이언 네온
 
         ctx.beginPath()
-        ctx.arc(dotX, dotY, dot.isObstacle ? 3.5 : 2.0, 0, Math.PI * 2)
+        ctx.arc(dotX, dotY, dot.isObstacle ? 4.0 : 2.2, 0, Math.PI * 2)
         ctx.fill()
       })
+      ctx.shadowBlur = 0 // 섀도우 블러 리셋
       scanDots = scanDots.filter((dot) => dot.life > 0)
 
       // 레이더 원형 림 테두리
-      ctx.strokeStyle = "rgba(0, 240, 255, 0.3)"
+      ctx.strokeStyle = "rgba(0, 240, 255, 0.24)"
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.arc(cx, cy, radius, 0, Math.PI * 2)
       ctx.stroke()
 
-      // 방위각 텍스트 라벨
+      // 방위각 텍스트 라벨 인쇄
       ctx.fillStyle = "rgba(0, 240, 255, 0.45)"
-      ctx.font = "8px monospace"
-      ctx.fillText("0° (N)", cx - 12, cy - radius + 8)
+      ctx.font = "bold 8px monospace"
+      ctx.fillText("0° (N)", cx - 14, cy - radius + 8)
       ctx.fillText("180° (S)", cx - 18, cy + radius - 4)
-      ctx.fillText("90° (E)", cx + radius - 30, cy + 3)
+      ctx.fillText("90° (E)", cx + radius - 32, cy + 3)
       ctx.fillText("270° (W)", cx - radius + 4, cy + 3)
 
       radarFrameRef.current = window.requestAnimationFrame(drawRadar)
@@ -208,7 +227,7 @@ export function CampusDeliveryVisualizer() {
     }
   }, [])
 
-  // 2. Three.js WebGL 실시간 자율주행 AMR 회피주행 물리 샌드박스
+  // 2. 🛞 Three.js WebGL 실시간 자율주행 AMR 회피주행 물리 샌드박스
   useEffect(() => {
     if (!canvas3DRef.current || !containerRef.current) return
     const canvas = canvas3DRef.current
@@ -223,47 +242,82 @@ export function CampusDeliveryVisualizer() {
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
     // 카메라
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100)
-    camera.position.set(0, 3.8, 5.0)
-    camera.lookAt(0, 0, 0)
+    camera.position.set(0, 3.4, 4.8)
+
+    // OrbitControls 이식
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.enableDamping = true
+    controls.dampingFactor = 0.05
+    controls.maxPolarAngle = Math.PI / 2 - 0.05
+    controls.minDistance = 2.0
+    controls.maxDistance = 12.0
+    controls.target.set(0, 0.1, 0)
 
     // 조명
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.96)
     scene.add(ambientLight)
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2)
-    dirLight.position.set(3, 8, 3)
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.4)
+    dirLight.position.set(4, 9, 4)
     dirLight.castShadow = true
+    dirLight.shadow.mapSize.width = 1024
+    dirLight.shadow.mapSize.height = 1024
+    dirLight.shadow.bias = -0.0003
     scene.add(dirLight)
 
+    const fillLight = new THREE.DirectionalLight(0x00f0ff, 0.65) // 사이버 충전 전용 조명
+    fillLight.position.set(-4, 6, -3)
+    scene.add(fillLight)
+
     // 가상 라우팅 맵 환경
-    const floorGrid = new THREE.GridHelper(8, 16, 0x6837e5, 0xdddddd)
+    const floorGrid = new THREE.GridHelper(8, 22, 0x6e3cff, 0x22263b)
     floorGrid.position.y = -0.01
     scene.add(floorGrid)
 
+    // 바닥의 빛나는 홀로그램 원형 데칼
+    const holoRingMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.DoubleSide
+    })
+    const holoRingGeo1 = new THREE.RingGeometry(1.6, 1.63, 64)
+    holoRingGeo1.rotateX(-Math.PI / 2)
+    const holoRing1 = new THREE.Mesh(holoRingGeo1, holoRingMat)
+    holoRing1.position.y = 0.01
+    scene.add(holoRing1)
+
     // 재질 정의
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x7a839e, roughness: 0.2, metalness: 0.9 })
-    const robotBodyMat = new THREE.MeshStandardMaterial({ color: 0x3b3f54, roughness: 0.3, metalness: 0.8 })
-    const darkGrayMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.6, metalness: 0.5 })
-    const dockMat = new THREE.MeshStandardMaterial({ color: 0x1d222d, roughness: 0.5, metalness: 0.8 })
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x2d3248, roughness: 0.22, metalness: 0.88 }) // 카본 딥블루
+    const robotBodyMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.15, metalness: 0.92 }) // 티타늄 실버
+    const darkGrayMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.55, metalness: 0.8 })
+    const dockMat = new THREE.MeshStandardMaterial({ color: 0x181c2b, roughness: 0.4, metalness: 0.85, emissive: 0x080914 })
     const glowLaserMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.14,
       side: THREE.DoubleSide
     })
     const dangerObstacleMat = new THREE.MeshStandardMaterial({
       color: 0xef4444,
       roughness: 0.1,
-      metalness: 0.9,
-      emissive: 0x7f1d1d,
-      emissiveIntensity: 0.8
+      metalness: 0.92,
+      emissive: 0x991b1b,
+      emissiveIntensity: 0.95
+    })
+    const obstacleDangerRingMat = new THREE.MeshBasicMaterial({
+      color: 0xef4444,
+      transparent: true,
+      opacity: 0.28,
+      side: THREE.DoubleSide
     })
 
     // A. 충전용 도킹 스테이션 (시작 지점)
-    const dockGeo = new THREE.BoxGeometry(0.5, 0.08, 0.5)
+    const dockGeo = new THREE.BoxGeometry(0.55, 0.08, 0.55)
     const dockStart = new THREE.Mesh(dockGeo, dockMat)
     dockStart.position.set(-2.0, 0.04, 0)
     scene.add(dockStart)
@@ -273,32 +327,32 @@ export function CampusDeliveryVisualizer() {
     dockDest.position.set(2.0, 0.04, 0)
     scene.add(dockDest)
 
-    const portalSignGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.02, 32)
-    const portalSignMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.3 })
+    const portalSignGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.02, 32)
+    const portalSignMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.25 })
     const portalSign = new THREE.Mesh(portalSignGeo, portalSignMat)
     portalSign.position.set(2.0, 0.051, 0)
     scene.add(portalSign)
 
-    // B. 자율주행 배송 로봇 (AMR)
+    // B. 자율주행 배송 로봇 (AMR) 어셈블리 그룹
     const amrGroup = new THREE.Group()
     amrGroup.position.set(-2.0, 0.08, 0)
     scene.add(amrGroup)
 
-    // 원형 메카넘 섀시 본체
-    const bodyGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.16, 32)
+    // 원형 섀시 본체
+    const bodyGeo = new THREE.CylinderGeometry(0.19, 0.19, 0.14, 32)
     const bodyMesh = new THREE.Mesh(bodyGeo, robotBodyMat)
     bodyMesh.castShadow = true
     amrGroup.add(bodyMesh)
 
     // 배송 화물 보관 캐비닛 (네모난 서랍)
-    const cabGeo = new THREE.BoxGeometry(0.16, 0.14, 0.22)
+    const cabGeo = new THREE.BoxGeometry(0.18, 0.15, 0.24)
     const cabMesh = new THREE.Mesh(cabGeo, darkGrayMat)
-    cabMesh.position.set(0, 0.15, 0)
+    cabMesh.position.set(0, 0.14, 0)
     cabMesh.castShadow = true
     amrGroup.add(cabMesh)
 
     // 라이다 돔 센서 (로봇 상단 힌지)
-    const lidarDomeGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.06, 16)
+    const lidarDomeGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.06, 16)
     const lidarDome = new THREE.Mesh(lidarDomeGeo, darkGrayMat)
     lidarDome.position.set(0, 0.24, 0)
     amrGroup.add(lidarDome)
@@ -309,18 +363,76 @@ export function CampusDeliveryVisualizer() {
     lidarLens.position.set(0.05, 0.24, 0)
     amrGroup.add(lidarLens)
 
-    // C. 3D 라이다 스캔 레이저 빔 동심원 링
-    const laserRingGeo = new THREE.RingGeometry(0.24, 0.8, 32)
-    laserRingGeo.rotateX(-Math.PI / 2) // Y축 회전
+    // C. 3D AMR 4륜 메카넘 바퀴 추가 (주행 회전 효과용)
+    const wheelGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.04, 16)
+    wheelGeo.rotateZ(Math.PI / 2) // Y축 방향 바퀴 회전
+    
+    const wheelFrontLeft = new THREE.Mesh(wheelGeo, darkGrayMat)
+    wheelFrontLeft.position.set(-0.16, -0.04, 0.12)
+    
+    const wheelFrontRight = new THREE.Mesh(wheelGeo, darkGrayMat)
+    wheelFrontRight.position.set(0.16, -0.04, 0.12)
+    
+    const wheelBackLeft = new THREE.Mesh(wheelGeo, darkGrayMat)
+    wheelBackLeft.position.set(-0.16, -0.04, -0.12)
+    
+    const wheelBackRight = new THREE.Mesh(wheelGeo, darkGrayMat)
+    wheelBackRight.position.set(0.16, -0.04, -0.12)
+
+    amrGroup.add(wheelFrontLeft, wheelFrontRight, wheelBackLeft, wheelBackRight)
+
+    // D. 3D 라이다 스캔 레이저 빔 동심원 링
+    const laserRingGeo = new THREE.RingGeometry(0.24, 0.82, 32)
+    laserRingGeo.rotateX(-Math.PI / 2)
     const laserRing = new THREE.Mesh(laserRingGeo, glowLaserMat)
     laserRing.position.set(0, 0.24, 0)
     amrGroup.add(laserRing)
 
-    // D. 인젝션 장애물 기둥
+    // E. ✨ 실시간 3D LiDAR 포인트 클라우드 파티클 센싱 빔 (LiDAR Scanning Point Cloud)
+    const lidarParticleCount = 120
+    const lidarGeo = new THREE.BufferGeometry()
+    const lidarPositions = new Float32Array(lidarParticleCount * 3)
+    const lidarAngles = new Float32Array(lidarParticleCount)
+    const lidarDistances = new Float32Array(lidarParticleCount)
+
+    // 입자들을 AMR 주변 극좌표 방사형으로 배치
+    for (let i = 0; i < lidarParticleCount; i++) {
+      const angle = (i / lidarParticleCount) * Math.PI * 2
+      const dist = 0.5 + Math.random() * 2.2
+      lidarAngles[i] = angle
+      lidarDistances[i] = dist
+
+      lidarPositions[i * 3] = dist * Math.cos(angle)
+      lidarPositions[i * 3 + 1] = 0.24
+      lidarPositions[i * 3 + 2] = dist * Math.sin(angle)
+    }
+
+    lidarGeo.setAttribute("position", new THREE.BufferAttribute(lidarPositions, 3))
+    const lidarParticleMat = new THREE.PointsMaterial({
+      color: 0x00f0ff,
+      size: 0.05,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending
+    })
+
+    const lidarParticles = new THREE.Points(lidarGeo, lidarParticleMat)
+    amrGroup.add(lidarParticles)
+
+    // F. 인젝션 장애물 기둥
     const obstaclePillarGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.6, 16)
     const obstaclePillar = new THREE.Mesh(obstaclePillarGeo, dangerObstacleMat)
-    obstaclePillar.position.set(0.0, -1.0, -0.1) // 최초 지하 대기 (안 보임)
+    obstaclePillar.position.set(0.0, -1.0, -0.1) // 최초 지하 대기
+    obstaclePillar.castShadow = true
     scene.add(obstaclePillar)
+
+    // 장애물 하단 홀로그램 위험 펄스 원 링
+    const obstacleDangerRingGeo = new THREE.RingGeometry(0.38, 0.40, 32)
+    obstacleDangerRingGeo.rotateX(-Math.PI / 2)
+    const obstacleDangerRing = new THREE.Mesh(obstacleDangerRingGeo, obstacleDangerRingMat)
+    obstacleDangerRing.position.set(0.0, 0.015, -0.1)
+    obstacleDangerRing.scale.set(0, 0, 0)
+    scene.add(obstacleDangerRing)
 
     // 실시간 주행 궤적용 변수
     let currentX = -2.0
@@ -335,25 +447,40 @@ export function CampusDeliveryVisualizer() {
 
       // A. 장애물 소환 애니메이션
       let targetPillarY = -1.0
+      let targetRingScale = 0.0
       if (activeObstacle) {
-        targetPillarY = 0.3 // 지상으로 돌출 렌더링
+        targetPillarY = 0.3
+        targetRingScale = 1.0 + Math.sin(performance.now() * 0.012) * 0.08
       }
       obstaclePillar.position.y += (targetPillarY - obstaclePillar.position.y) * 0.15
+      
+      // 위험 구역 붉은 홀로그램 펄스 링 연동 스케일
+      obstacleDangerRing.scale.x += (targetRingScale - obstacleDangerRing.scale.x) * 0.12
+      obstacleDangerRing.scale.z += (targetRingScale - obstacleDangerRing.scale.z) * 0.12
 
-      // 라이다 회전 연출
+      // 라이다 센서 돔 고속 회전 및 레이저 펄스 링 연출
       lidarDome.rotation.y += 0.32
       laserRing.rotation.y -= 0.02
       
       const laserPulse = 1.0 + Math.sin(performance.now() * 0.01) * 0.2
       laserRing.scale.set(laserPulse, 1, laserPulse)
 
+      // LiDAR 3D 포인트 클라우드 파티클 센서 링 회전 및 펄스 반짝임
+      lidarParticles.rotation.y -= 0.025
+
+      // OrbitControls Damping 업데이트
+      controls.update()
+
       // B. 자율주행 모션 및 궤적 계산 (AMR 주행제어 코어)
+      let wSpeed = 0 // 바퀴 회전 속도
+
       if (currentMode === "delivering") {
         // 배터리 소모 감쇄 시뮬레이션
         setBattery((b) => Math.max(0, Number((b - 0.005).toFixed(2))))
 
         // 주행 진행 속도
         let speedVal = 0.005
+        wSpeed = speedVal * 12.0 // 전진 속도 비례 휠 굴림
 
         // 장애물 존재 및 거리 센싱
         const obstacleX = 0.0
@@ -362,10 +489,11 @@ export function CampusDeliveryVisualizer() {
         if (activeObstacle && Math.abs(currentX - obstacleX) < 1.1) {
           // 장애물 사각 접근권 진입 시 속도 자동 감속 처리 (안전 셧다운 제어 0.4 m/s 연계)
           speedVal = 0.0016
+          wSpeed = speedVal * 12.0
           setSpeed(0.4)
 
           // 가우시안 곡선 형태의 스무스한 로컬 회회 이격(Z축 offset) 자동 보간
-          // X가 -0.8부터 0.8까지 접근할 때 Z축으로 0.45 units 만큼 볼록 튀어올라 우회 주행하게끔 Z축 좌표 계산
+          // X가 -0.8부터 0.8까지 접근할 때 Z축으로 0.45 units 만큼 우회 주행하게끔 Z축 좌표 계산
           const dx = currentX - obstacleX
           const avoidanceArc = 0.46 * Math.exp(-Math.pow(dx * 1.5, 2))
           avoidOffset = avoidanceArc
@@ -405,6 +533,7 @@ export function CampusDeliveryVisualizer() {
         // 충전 도킹 기지로 후진/복귀
         setSpeed(1.0)
         progress -= 0.006
+        wSpeed = -0.006 * 12.0 // 역회전 휠 굴림
 
         if (progress <= 0) {
           progress = 0
@@ -427,10 +556,18 @@ export function CampusDeliveryVisualizer() {
 
       } else if (currentMode === "estop") {
         setSpeed(0)
+        wSpeed = 0
       } else {
         // idle 대기
         setSpeed(0)
+        wSpeed = 0
       }
+
+      // AMR 4륜 메카넘 바퀴 회전 대입
+      wheelFrontLeft.rotation.x += wSpeed
+      wheelFrontRight.rotation.x += wSpeed
+      wheelBackLeft.rotation.x += wSpeed
+      wheelBackRight.rotation.x += wSpeed
 
       renderer.render(scene, camera)
       animFrameRef.current = window.requestAnimationFrame(tick)
@@ -462,8 +599,11 @@ export function CampusDeliveryVisualizer() {
       cabGeo.dispose()
       lidarDomeGeo.dispose()
       lidarLensGeo.dispose()
+      wheelGeo.dispose()
       laserRingGeo.dispose()
+      lidarGeo.dispose()
       obstaclePillarGeo.dispose()
+      obstacleDangerRingGeo.dispose()
 
       frameMat.dispose()
       robotBodyMat.dispose()
@@ -471,7 +611,10 @@ export function CampusDeliveryVisualizer() {
       dockMat.dispose()
       glowLaserMat.dispose()
       dangerObstacleMat.dispose()
+      obstacleDangerRingMat.dispose()
       portalSignMat.dispose()
+      holoRingMat.dispose()
+      lidarParticleMat.dispose()
 
       renderer.dispose()
     }

@@ -2203,7 +2203,8 @@ textarea:focus-visible {
 }
 
 .screen-iot-dashboard {
-  background: oklch(0.97 0.01 250);
+  background: #090c15; /* 딥 다크 스페이스 */
+  border-left: 1px solid rgba(0, 240, 255, 0.08);
   display: flex;
   flex-direction: column;
   padding: 16px;
@@ -2219,24 +2220,26 @@ textarea:focus-visible {
 .iot-header {
   font-size: 0.72rem;
   font-weight: 750;
-  color: oklch(0.35 0.06 250);
+  color: #00f0ff; /* 빛나는 사이언 */
   display: flex;
   align-items: center;
   gap: 6px;
   text-transform: uppercase;
   margin-bottom: 12px;
-  border-bottom: 1px solid oklch(0.12 0.025 250 / 8%);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.15);
   padding-bottom: 6px;
+  text-shadow: 0 0 4px rgba(0, 240, 255, 0.4);
 }
 
 .graph-container {
   flex: 1;
   min-height: 120px;
-  background: #ffffff;
-  border: 1px solid oklch(0.12 0.025 250 / 12%);
+  background: #0e111d; /* 다크 블랙홀 슬레이트 */
+  border: 1px solid rgba(0, 240, 255, 0.15);
   border-radius: 6px;
   overflow: hidden;
   position: relative;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
 }
 
 .iot-graph-canvas {
@@ -2247,8 +2250,8 @@ textarea:focus-visible {
 
 .iot-stats {
   margin-top: 14px;
-  background: #ffffff;
-  border: 1px solid oklch(0.12 0.025 250 / 12%);
+  background: #0c0f1b;
+  border: 1px solid rgba(0, 240, 255, 0.12);
   border-radius: 6px;
   padding: 12px;
 }
@@ -2257,26 +2260,27 @@ textarea:focus-visible {
   display: flex;
   justify-content: space-between;
   font-size: 0.74rem;
+  padding: 3px 0;
 }
 
 .stat-lbl {
-  color: oklch(0.5 0.02 250);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .stat-val {
   font-weight: 700;
-  color: oklch(0.2 0.03 250);
+  color: #e2e8f0;
 }
 
 /* ⚠️ 비상 온도 과열 및 모터 진동 경보 펄스 알림 바 */
 @keyframes alert-red-flash {
   0%, 100% {
-    background: oklch(0.62 0.22 27 / 85%);
-    box-shadow: 0 0 10px oklch(0.62 0.22 27 / 35%);
+    background: rgba(239, 68, 68, 0.8);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
   }
   50% {
-    background: oklch(0.62 0.22 27 / 96%);
-    box-shadow: 0 0 18px oklch(0.62 0.22 27 / 65%);
+    background: rgba(239, 68, 68, 0.95);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.7);
   }
 }
 
@@ -2295,6 +2299,7 @@ textarea:focus-visible {
   gap: 8px;
   animation: alert-red-flash 1s infinite ease-in-out;
   backdrop-filter: blur(4px);
+  border: 1px solid rgba(239, 68, 68, 0.4);
 }
 
 /* 💻 엣지 게이트웨이 셸 로그 콘솔 */
@@ -2324,8 +2329,50 @@ textarea:focus-visible {
 }
 
 .log-alert {
-  color: oklch(0.68 0.22 27) !important;
+  color: #ef4444 !important;
   font-weight: 700;
+  text-shadow: 0 0 3px rgba(239, 68, 68, 0.3);
+}
+
+/* ✨ 프리미엄 네온 버튼 마이크로 펄스 애니메이션 */
+.btn-action {
+  transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-action:hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.btn-gripper:hover {
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+
+.btn-stop:hover {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+.btn-reset:hover {
+  box-shadow: 0 0 15px rgba(110, 60, 255, 0.4);
+}
+
+.btn-active-glow {
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.5) !important;
+  animation: neon-pulse-cyan 1.5s infinite ease-in-out;
+}
+
+.btn-ready-glow {
+  box-shadow: 0 0 18px rgba(239, 68, 68, 0.5) !important;
+  animation: neon-pulse-red 1.5s infinite ease-in-out;
+}
+
+@keyframes neon-pulse-cyan {
+  0%, 100% { box-shadow: 0 0 10px rgba(0, 240, 255, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(0, 240, 255, 0.6); }
+}
+
+@keyframes neon-pulse-red {
+  0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.6); }
 }
 
 

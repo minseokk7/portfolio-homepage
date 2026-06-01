@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { Sliders, Cpu, Activity, AlertTriangle, ShieldAlert, Check, RefreshCw } from "lucide-react"
 import * as THREE from "three"
+// @ts-ignore
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
 
 type InspectionMode = "normal" | "vision-fault" | "thermal-fault" | "vibration-fault"
 
@@ -59,7 +61,7 @@ export function InspectionCoreVisualizer() {
     setConsoleLogs((prev) => [`[${time}] ${msg}`, ...prev.slice(0, 14)])
   }
 
-  // 1. HTML5 2D Canvas 실시간 IoT 센서 모니터 모듈
+  // 1. ✨ HTML5 2D Canvas 초호화 Sci-Fi 오실로스코프 HUD 모니터 모듈
   useEffect(() => {
     if (!canvasGraphRef.current) return
     const canvas = canvasGraphRef.current
@@ -69,13 +71,16 @@ export function InspectionCoreVisualizer() {
     let width = canvas.width
     let height = canvas.height
 
-    const pointsVib: number[] = Array(60).fill(1.8)
-    const pointsTemp: number[] = Array(60).fill(35.2)
+    const pointsVib: number[] = Array(64).fill(1.8)
+    const pointsTemp: number[] = Array(64).fill(35.2)
     let t = 0
 
     const drawGraph = () => {
-      t += 0.1
-      ctx.clearRect(0, 0, width, height)
+      t += 0.08
+      
+      // 잔상(Phosphor Decay) 효과를 내기 위해 투명한 다크 백그라운드로 덮어씌움
+      ctx.fillStyle = "rgba(9, 12, 22, 0.25)"
+      ctx.fillRect(0, 0, width, height)
 
       // 온도 및 진동 실시간 스냅 상태 업데이트
       const currentMode = modeRef.current
@@ -83,14 +88,14 @@ export function InspectionCoreVisualizer() {
       let targetVib = 1.8
 
       if (currentMode === "thermal-fault") {
-        targetTemp = 92.4 + Math.sin(t * 2) * 1.5
-        targetVib = 2.1 + Math.sin(t) * 0.3
+        targetTemp = 92.4 + Math.sin(t * 2.5) * 1.8
+        targetVib = 2.0 + Math.sin(t) * 0.45
       } else if (currentMode === "vibration-fault") {
-        targetTemp = 41.5 + Math.sin(t) * 0.8
-        targetVib = 7.8 + Math.cos(t * 3) * 1.2
+        targetTemp = 42.1 + Math.sin(t) * 0.7
+        targetVib = 7.8 + Math.cos(t * 3.5) * 1.5 + (Math.random() - 0.5) * 0.4 // 미세 떨림 지터 노이즈 추가
       } else {
-        targetTemp = 35.2 + Math.sin(t * 0.5) * 0.4
-        targetVib = 1.8 + Math.cos(t) * 0.25
+        targetTemp = 35.2 + Math.sin(t * 0.4) * 0.35
+        targetVib = 1.8 + Math.cos(t * 0.9) * 0.22
       }
 
       setTemp(Number(targetTemp.toFixed(1)))
@@ -101,75 +106,87 @@ export function InspectionCoreVisualizer() {
       pointsVib.push(targetVib)
       pointsVib.shift()
 
-      // 그리드 라인 그리기
-      ctx.strokeStyle = "rgba(104, 55, 229, 0.1)"
+      // A. 사이버네틱 HUD 보정 격자망(Micro Grid Network)
+      ctx.strokeStyle = "rgba(0, 240, 255, 0.04)"
       ctx.lineWidth = 1
-      for (let i = 0; i < width; i += 20) {
+      for (let i = 0; i < width; i += 16) {
         ctx.beginPath()
         ctx.moveTo(i, 0)
         ctx.lineTo(i, height)
         ctx.stroke()
       }
-      for (let i = 0; i < height; i += 20) {
+      for (let i = 0; i < height; i += 16) {
         ctx.beginPath()
         ctx.moveTo(0, i)
         ctx.lineTo(width, i)
         ctx.stroke()
       }
 
-      // A. 온도 모니터 그래프 그리기 (상단 절반 영역)
       const graphH = height / 2
-      ctx.strokeStyle = currentMode === "thermal-fault" ? "oklch(0.68 0.22 27)" : "oklch(0.7 0.12 142)"
-      ctx.lineWidth = 2
+
+      // B. 온도 모니터 그래프 그리기 (상단)
+      ctx.shadowColor = currentMode === "thermal-fault" ? "rgba(239, 68, 68, 0.85)" : "rgba(0, 240, 255, 0.6)"
+      ctx.shadowBlur = 8
+      ctx.strokeStyle = currentMode === "thermal-fault" ? "#ef4444" : "#00f0ff"
+      ctx.lineWidth = 2.0
       ctx.beginPath()
       for (let i = 0; i < pointsTemp.length; i++) {
         const x = (i / (pointsTemp.length - 1)) * width
-        const ratio = (pointsTemp[i] - 20) / 90 // 20°C to 110°C 스케일
-        const y = graphH - 10 - ratio * (graphH - 20)
+        const ratio = (pointsTemp[i] - 15) / 100 // 15°C to 115°C 스케일
+        const y = graphH - 12 - ratio * (graphH - 24)
         if (i === 0) ctx.moveTo(x, y)
         else ctx.lineTo(x, y)
       }
       ctx.stroke()
 
-      // 온도 한계선 점선 표기
-      ctx.strokeStyle = "rgba(229, 57, 57, 0.4)"
-      ctx.setLineDash([3, 3])
+      // 온도 안전 한계선 (빨간 점멸 테두리 데인저 라인)
+      ctx.shadowBlur = 0
+      ctx.strokeStyle = "rgba(239, 68, 68, 0.35)"
+      ctx.setLineDash([4, 4])
       ctx.beginPath()
-      const limitY = graphH - 10 - ((75 - 20) / 90) * (graphH - 20) // 75°C 한계선
+      const limitY = graphH - 12 - ((75 - 15) / 100) * (graphH - 24)
       ctx.moveTo(0, limitY)
       ctx.lineTo(width, limitY)
       ctx.stroke()
       ctx.setLineDash([])
 
-      // 텍스트 라벨
-      ctx.fillStyle = "rgba(50, 50, 50, 0.8)"
-      ctx.font = "bold 9px monospace"
-      ctx.fillText("TEMP SENSOR (MAX 75°C LIMIT)", 6, 12)
+      // 데인저 위험 임계치 경고 텍스트 오버레이
+      ctx.fillStyle = "rgba(0, 240, 255, 0.55)"
+      ctx.font = "7px monospace"
+      ctx.fillText("TEMP SENSOR FEEDBACK (75°C MAX)", 8, 12)
+      ctx.fillStyle = "rgba(239, 68, 68, 0.8)"
+      ctx.fillText("WARN_LIMIT", width - 58, limitY - 4)
 
-      // B. 진동 가속도 그래프 그리기 (하단 절반 영역)
-      ctx.strokeStyle = currentMode === "vibration-fault" ? "oklch(0.68 0.22 27)" : "oklch(0.68 0.2 229)"
+      // C. 진동 가속도 그래프 그리기 (하단)
+      ctx.shadowColor = currentMode === "vibration-fault" ? "rgba(239, 68, 68, 0.85)" : "rgba(110, 60, 255, 0.7)"
+      ctx.shadowBlur = 8
+      ctx.strokeStyle = currentMode === "vibration-fault" ? "#ef4444" : "#6e3cff"
+      ctx.lineWidth = 2.0
       ctx.beginPath()
       for (let i = 0; i < pointsVib.length; i++) {
         const x = (i / (pointsVib.length - 1)) * width
-        const ratio = pointsVib[i] / 10 // 0g to 10g 스케일
-        const y = height - 10 - ratio * (graphH - 20)
+        const ratio = pointsVib[i] / 12 // 0g to 12g 스케일
+        const y = height - 12 - ratio * (graphH - 24)
         if (i === 0) ctx.moveTo(x, y)
         else ctx.lineTo(x, y)
       }
       ctx.stroke()
 
-      // 진동 위험선 표기
-      ctx.strokeStyle = "rgba(229, 57, 57, 0.4)"
-      ctx.setLineDash([3, 3])
+      // 진동 안전 위험선
+      ctx.shadowBlur = 0
+      ctx.strokeStyle = "rgba(239, 68, 68, 0.35)"
+      ctx.setLineDash([4, 4])
       ctx.beginPath()
-      const vibLimitY = height - 10 - (5.0 / 10) * (graphH - 20) // 5g 한계선
+      const vibLimitY = height - 12 - (5.0 / 12) * (graphH - 24)
       ctx.moveTo(0, vibLimitY)
       ctx.lineTo(width, vibLimitY)
       ctx.stroke()
       ctx.setLineDash([])
 
-      ctx.fillStyle = "rgba(50, 50, 50, 0.8)"
-      ctx.fillText("VIB SENSOR (MAX 5.0g LIMIT)", 6, graphH + 12)
+      ctx.fillStyle = "rgba(110, 60, 255, 0.65)"
+      ctx.fillText("ACCELEROMETER FEEDBACK (5.0g MAX)", 8, graphH + 12)
+      ctx.fillStyle = "rgba(239, 68, 68, 0.8)"
+      ctx.fillText("WARN_LIMIT", width - 58, vibLimitY - 4)
 
       graphFrameRef.current = window.requestAnimationFrame(drawGraph)
     }
@@ -191,7 +208,7 @@ export function InspectionCoreVisualizer() {
     }
   }, [])
 
-  // 2. Three.js WebGL 실시간 3D 스캐너 기믹
+  // 2. 🦾 Three.js WebGL 실시간 3D 스마트 스캐너 기믹
   useEffect(() => {
     if (!canvas3DRef.current || !containerRef.current) return
     const canvas = canvas3DRef.current
@@ -206,70 +223,108 @@ export function InspectionCoreVisualizer() {
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
-    // 카메라
+    // 카메라 설정
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100)
-    camera.position.set(0, 3.8, 5.0)
-    camera.lookAt(0, 0.2, 0)
+    camera.position.set(0, 2.5, 4.2)
 
-    // 조명
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9)
+    // 부드러운 궤도 제어용 OrbitControls 이식
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.enableDamping = true
+    controls.dampingFactor = 0.05
+    controls.maxPolarAngle = Math.PI / 2 - 0.05
+    controls.minDistance = 2.0
+    controls.maxDistance = 10.0
+    controls.target.set(0, 0.2, 0)
+
+    // 고휘도 3포인트 스튜디오 조명 배치
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95)
     scene.add(ambientLight)
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2)
-    dirLight.position.set(3, 8, 3)
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5)
+    dirLight.position.set(4, 10, 4)
     dirLight.castShadow = true
+    dirLight.shadow.mapSize.width = 1024
+    dirLight.shadow.mapSize.height = 1024
+    dirLight.shadow.bias = -0.0003
     scene.add(dirLight)
 
-    const fillLight = new THREE.DirectionalLight(0x90b0ff, 0.5)
+    const fillLight = new THREE.DirectionalLight(0x00f0ff, 0.6) // 미래지향적 푸른 충전 조명
     fillLight.position.set(-4, 5, -3)
     scene.add(fillLight)
 
     // 모터 가열 시 벌겋게 연출하기 위한 열광 포인트 소스
-    const heatIndicatorLight = new THREE.PointLight(0xff3300, 0, 10)
-    heatIndicatorLight.position.set(0, 0.5, 0)
+    const heatIndicatorLight = new THREE.PointLight(0xff3300, 0, 8)
+    heatIndicatorLight.position.set(-1.9, 0.2, 0)
     scene.add(heatIndicatorLight)
 
-    // 바닥 격자판
-    const gridHelper = new THREE.GridHelper(8, 16, 0x6837e5, 0xdddddd)
+    // 미래형 홀로그래픽 바닥 스튜디오 스테이지
+    const gridHelper = new THREE.GridHelper(8, 20, 0x6e3cff, 0x22263b)
     gridHelper.position.y = -0.5
     scene.add(gridHelper)
 
+    // 바닥 중심의 빛나는 홀로그램 서클
+    const holoRingMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.DoubleSide
+    })
+    const holoRingGeo = new THREE.RingGeometry(0.9, 0.93, 32)
+    holoRingGeo.rotateX(-Math.PI / 2)
+    const holoRing = new THREE.Mesh(holoRingGeo, holoRingMat)
+    holoRing.position.set(0, -0.48, 0)
+    scene.add(holoRing)
+
     // 재질 정의
-    const conveyorMat = new THREE.MeshStandardMaterial({ color: 0x1d222d, roughness: 0.6, metalness: 0.8 })
-    const frameMat = new THREE.MeshStandardMaterial({ color: 0x7a839e, roughness: 0.2, metalness: 0.9 })
-    const cameraBodyMat = new THREE.MeshStandardMaterial({ color: 0x3b3f54, roughness: 0.3, metalness: 0.8 })
+    const conveyorMat = new THREE.MeshStandardMaterial({ color: 0x1d222d, roughness: 0.55, metalness: 0.85 })
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.15, metalness: 0.92 }) // 티타늄 브러시드 실버
+    const cameraBodyMat = new THREE.MeshStandardMaterial({ color: 0x2d3248, roughness: 0.25, metalness: 0.88 }) // 카본 딥블루
     const glowLaserMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
-      opacity: 0.25,
+      opacity: 0.28,
       side: THREE.DoubleSide
     })
     const normalWaferMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.1, metalness: 0.9, emissive: 0x064e3b, emissiveIntensity: 0.2 })
     const faultyWaferMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.2, metalness: 0.7, emissive: 0x7f1d1d, emissiveIntensity: 0.4 })
-    const scrapTrayMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.4, metalness: 0.6 })
+    const scrapTrayMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.4, metalness: 0.8, emissive: 0x080914 })
 
     // A. 컨베이어 벨트 구조물
     const conveyorGeo = new THREE.BoxGeometry(4.2, 0.15, 0.6)
     const conveyor = new THREE.Mesh(conveyorGeo, conveyorMat)
     conveyor.position.set(0, 0, 0)
+    conveyor.receiveShadow = true
     scene.add(conveyor)
 
-    // 컨베이어 지지대 레일
-    const railGeo = new THREE.BoxGeometry(4.2, 0.05, 0.05)
+    // 컨베이어 좌우 메탈 세이프티 가이드 가드레일 (크롬 실버 피막 코팅)
+    const railGeo = new THREE.BoxGeometry(4.2, 0.04, 0.03)
     const rail1 = new THREE.Mesh(railGeo, frameMat)
-    rail1.position.set(0, 0.08, 0.31)
+    rail1.position.set(0, 0.09, 0.315)
     const rail2 = rail1.clone()
-    rail2.position.set(0, 0.08, -0.31)
+    rail2.position.set(0, 0.09, -0.315)
     scene.add(rail1, rail2)
+
+    // 컨베이어 벨트 드라이브 힌지용 메탈 스포크 롤러 휠 기어 2개 추가
+    const rollerGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.62, 12)
+    rollerGeo.rotateX(Math.PI / 2)
+    
+    const leftRoller = new THREE.Mesh(rollerGeo, frameMat)
+    leftRoller.position.set(-1.8, -0.02, 0)
+    
+    const rightRoller = new THREE.Mesh(rollerGeo, frameMat)
+    rightRoller.position.set(1.8, -0.02, 0)
+    scene.add(leftRoller, rightRoller)
 
     // B. 비전 검사 카메라 하우징 & 지지 갠트리 프레임
     const gantryFrameGroup = new THREE.Group()
     scene.add(gantryFrameGroup)
 
-    const pillarGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.2, 16)
+    const pillarGeo = new THREE.CylinderGeometry(0.04, 0.045, 1.2, 16)
     const pillar1 = new THREE.Mesh(pillarGeo, frameMat)
     pillar1.position.set(0, 0.5, 0.38)
+    pillar1.castShadow = true
     const pillar2 = pillar1.clone()
     pillar2.position.set(0, 0.5, -0.38)
     gantryFrameGroup.add(pillar1, pillar2)
@@ -277,59 +332,107 @@ export function InspectionCoreVisualizer() {
     const crossbarGeo = new THREE.BoxGeometry(0.08, 0.08, 0.8)
     const crossbar = new THREE.Mesh(crossbarGeo, frameMat)
     crossbar.position.set(0, 1.1, 0)
+    crossbar.castShadow = true
     gantryFrameGroup.add(crossbar)
 
-    // 비전 카메라 본체
-    const cameraBodyGeo = new THREE.BoxGeometry(0.18, 0.22, 0.18)
+    // 비전 카메라 본체 및 LED 상태등
+    const cameraBodyGeo = new THREE.BoxGeometry(0.20, 0.22, 0.20)
     const cameraBody = new THREE.Mesh(cameraBodyGeo, cameraBodyMat)
     cameraBody.position.set(0, 0.95, 0)
+    cameraBody.castShadow = true
     gantryFrameGroup.add(cameraBody)
 
-    const lensGeo = new THREE.CylinderGeometry(0.05, 0.06, 0.1, 16)
+    const lensGeo = new THREE.CylinderGeometry(0.05, 0.065, 0.12, 16)
     const lens = new THREE.Mesh(lensGeo, frameMat)
-    lens.position.set(0, 0.8, 0)
+    lens.position.set(0, 0.78, 0)
     gantryFrameGroup.add(lens)
+
+    // 카메라 작동 시그널 LED 라이트 링
+    const cameraLedGeo = new THREE.SphereGeometry(0.024, 16, 16)
+    const cameraLedMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+    const cameraLed = new THREE.Mesh(cameraLedGeo, cameraLedMat)
+    cameraLed.position.set(0.07, 0.95, 0.11)
+    gantryFrameGroup.add(cameraLed)
 
     // C. 3D 네온 스캔 레이저 빔 플레이트
     const laserGeo = new THREE.PlaneGeometry(0.015, 0.6)
-    laserGeo.rotateX(Math.PI / 2) // Y-Z 평면 회전
+    laserGeo.rotateX(Math.PI / 2)
     const laserMesh = new THREE.Mesh(laserGeo, glowLaserMat)
     laserMesh.position.set(0, 0.4, 0)
     scene.add(laserMesh)
 
     // D. 불량품용 폐기 트레이 수거함
-    const trayGeo = new THREE.BoxGeometry(0.6, 0.3, 0.6)
+    const trayGeo = new THREE.BoxGeometry(0.65, 0.3, 0.65)
     const tray = new THREE.Mesh(trayGeo, scrapTrayMat)
-    tray.position.set(1.5, -0.3, 0.7) // 컨베이어 아래, 우측 빗겨난 구역
+    tray.position.set(1.5, -0.3, 0.75) // 컨베이어 아래, 우측 빗겨난 구역
+    tray.castShadow = true
+    tray.receiveShadow = true
     scene.add(tray)
+
+    const trayDecalGeo = new THREE.RingGeometry(0.32, 0.35, 32)
+    trayDecalGeo.rotateX(-Math.PI / 2)
+    const trayRingMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.2 })
+    const trayRing = new THREE.Mesh(trayDecalGeo, trayRingMat)
+    trayRing.position.set(1.5, -0.14, 0.75)
+    scene.add(trayRing)
 
     // E. 불량 분리용 회전 게이트 (Diverter Arm)
     const gateGroup = new THREE.Group()
-    gateGroup.position.set(1.1, 0.08, 0.31) // 컨베이어 끝 레일에 힌지 장착
+    gateGroup.position.set(1.1, 0.08, 0.31)
     scene.add(gateGroup)
 
-    const gateBarGeo = new THREE.BoxGeometry(0.6, 0.08, 0.03)
-    gateBarGeo.translate(0.3, 0, 0) // 회전축을 끝단으로 보정
+    const gateBarGeo = new THREE.BoxGeometry(0.62, 0.08, 0.028)
+    gateBarGeo.translate(0.31, 0, 0) // 회전축 보정
     const gateBar = new THREE.Mesh(gateBarGeo, frameMat)
+    gateBar.castShadow = true
     gateGroup.add(gateBar)
+
+    // F. ✨ AI 비전 스포트라이트 파티클 시스템 (Scanning Spark Particles)
+    const sparkCount = 40
+    const sparksGeo = new THREE.BufferGeometry()
+    const sparkPos = new Float32Array(sparkCount * 3)
+    const sparkVel = new Float32Array(sparkCount * 3)
+
+    // 스캔선 구역(X=0, Z=-0.3 ~ 0.3, Y=0.08)에 파티클 응집 대기
+    for (let i = 0; i < sparkCount; i++) {
+      sparkPos[i * 3] = (Math.random() - 0.5) * 0.05
+      sparkPos[i * 3 + 1] = 0.08 + Math.random() * 0.05
+      sparkPos[i * 3 + 2] = (Math.random() - 0.5) * 0.6
+
+      sparkVel[i * 3] = 0
+      sparkVel[i * 3 + 1] = 0
+      sparkVel[i * 3 + 2] = 0
+    }
+
+    sparksGeo.setAttribute("position", new THREE.BufferAttribute(sparkPos, 3))
+    const sparkMat = new THREE.PointsMaterial({
+      color: 0x00f0ff,
+      size: 0.05,
+      transparent: true,
+      opacity: 0.0, // 최초엔 보이지 않음 (스캔 기동 시에만 튕김)
+      blending: THREE.AdditiveBlending
+    })
+    const scanSparks = new THREE.Points(sparksGeo, sparkMat)
+    scene.add(scanSparks)
 
     // 검사 품목(칩/웨이퍼) 관리용 큐
     let wafers: WaferItem[] = []
     let spawnTimer = 0
 
     // 비전 스캔 반응 효과를 위한 조명
-    const flashLight = new THREE.PointLight(0x00f0ff, 0, 4)
+    const flashLight = new THREE.PointLight(0x00f0ff, 0, 6)
     flashLight.position.set(0, 0.8, 0)
     scene.add(flashLight)
 
-    // F. 모터 구동 롤러 회전 장비 (수직 기어)
+    // G. 모터 구동 롤러 회전 장비 (수직 메탈 기어)
     const motorGroup = new THREE.Group()
-    motorGroup.position.set(-1.9, -0.2, 0)
+    motorGroup.position.set(-2.0, -0.2, 0)
     scene.add(motorGroup)
 
     const motorGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.22, 16)
     motorGeo.rotateX(Math.PI / 2)
     const motorMesh = new THREE.Mesh(motorGeo, frameMat)
+    motorMesh.castShadow = true
     motorGroup.add(motorMesh)
 
     // 3D 렌더러 애니메이션 루프
@@ -352,9 +455,16 @@ export function InspectionCoreVisualizer() {
         motorMesh.material = frameMat
       }
 
-      // 모터 회전 기믹
-      const rotSpeed = currentMode === "vibration-fault" ? 0.35 : 0.08
+      // 모터 및 컨베이어 롤러 기어 실시간 연동 회전 기믹
+      const rotSpeed = currentMode === "vibration-fault" ? 0.38 : currentMode === "thermal-fault" ? 0.04 : 0.08
       motorGroup.rotation.z += rotSpeed
+      
+      // 스포크 롤러 축 2개 회전
+      leftRoller.rotation.x += rotSpeed
+      rightRoller.rotation.x += rotSpeed
+
+      // OrbitControls 카메라 댐핑 업데이트
+      controls.update()
 
       // 컨베이어 벨트 위의 제품 스폰 제어 (등간격 스폰)
       spawnTimer++
@@ -415,6 +525,10 @@ export function InspectionCoreVisualizer() {
       }
       gateGroup.rotation.y += (targetGateAngle - gateGroup.rotation.y) * 0.22
 
+      // ✨ 스캔 기동 상태 및 LED 시그널 깜빡임 파악 변수
+      let isAnyScanning = false
+      let isAnyFaultFound = false
+
       // 웨이퍼 위치 업데이트 및 AI 비전 감지 연산
       wafers.forEach((wafer) => {
         // 이송 진행
@@ -433,16 +547,34 @@ export function InspectionCoreVisualizer() {
         // A. 스캐닝 빔 통과 센싱 (X좌표가 0.0에 다다를 때 스캐닝 작동)
         if (wafer.status === "pending" && Math.abs(curX) <= 0.06) {
           wafer.status = "scanning"
+          isAnyScanning = true
           
           // 푸른색 카메라 셔터 플래시 이펙트
           flashLight.intensity = 5.0
           setTimeout(() => { flashLight.intensity = 0 }, 120)
+
+          // 스파크 파티클 튕겨나가는 물리 가속 시동
+          const sPos = scanSparks.geometry.attributes.position as THREE.BufferAttribute
+          const sArray = sPos.array as Float32Array
+          sparkMat.opacity = 0.95
+
+          for (let i = 0; i < sparkCount; i++) {
+            sArray[i * 3] = (Math.random() - 0.5) * 0.02
+            sArray[i * 3 + 1] = 0.08 + Math.random() * 0.08
+            sArray[i * 3 + 2] = (Math.random() - 0.5) * 0.4
+
+            sparkVel[i * 3] = (Math.random() - 0.5) * 0.06
+            sparkVel[i * 3 + 1] = Math.random() * 0.08 + 0.03 // 위로 튕김
+            sparkVel[i * 3 + 2] = (Math.random() - 0.5) * 0.06
+          }
+          sPos.needsUpdate = true
 
           // AI 분류 연계
           statsRef.current.total++
           if (wafer.isFaulty) {
             statsRef.current.faults++
             wafer.status = "fault"
+            isAnyFaultFound = true
             addLog(`[VISION-AI] 이상 발견! 검출 칩 ID: #${wafer.id} -> 표면 0.4mm 크랙 불량 결함 판정.`)
           } else {
             wafer.status = "ok"
@@ -465,6 +597,10 @@ export function InspectionCoreVisualizer() {
           wafer.boxHelper = boxHelper
         }
 
+        if (wafer.status === "scanning") {
+          isAnyScanning = true
+        }
+
         // 바운딩 박스가 생성되었다면 칩과 위치 완벽 동기화
         if (wafer.boxHelper) {
           wafer.boxHelper.update()
@@ -482,9 +618,9 @@ export function InspectionCoreVisualizer() {
             const elapsed = (performance.now() - startDivertedTime) / 1000
             const t = Math.min(elapsed / 0.65, 1) // 0.65초 낙하
             
-            // X는 수거함 중심으로 포물선, Z는 0에서 0.7로 이동, Y는 중력 가속도 낙하
+            // X는 수거함 중심으로 포물선, Z는 0에서 0.75로 이동, Y는 중력 가속도 낙하
             wafer.mesh.position.x = startX + (1.5 - startX) * t
-            wafer.mesh.position.z = startZ + (0.7 - startZ) * t
+            wafer.mesh.position.z = startZ + (0.75 - startZ) * t
             wafer.mesh.position.y = 0.08 - 0.55 * t * t // 중력 포물선
 
             if (wafer.boxHelper) {
@@ -504,6 +640,32 @@ export function InspectionCoreVisualizer() {
           addLog(`[REJECT-SYSTEM] 분류 조작기 기동 -> 불량 칩 ID: #${wafer.id} 폐기 트레이 이송 분리 완료.`)
         }
       })
+
+      // 스캔 시그널 LED 라이트 색상 동적 매핑
+      if (isAnyScanning) {
+        cameraLedMat.color.setHex(0x00f0ff) // 스캔 동작 중: 사이언 블루
+      } else if (isAnyFaultFound) {
+        cameraLedMat.color.setHex(0xef4444) // 붉은 알람 점등
+      } else {
+        cameraLedMat.color.setHex(0x00ff88) // 정상 대기: 녹색
+      }
+
+      // ✨ 비전 스포트라이트 파티클 실시간 감쇠 및 발산
+      if (sparkMat.opacity > 0) {
+        sparkMat.opacity -= 0.035
+        const sPos = scanSparks.geometry.attributes.position as THREE.BufferAttribute
+        const sArray = sPos.array as Float32Array
+
+        for (let i = 0; i < sparkCount; i++) {
+          sArray[i * 3] += sparkVel[i * 3]
+          sArray[i * 3 + 1] += sparkVel[i * 3 + 1]
+          sArray[i * 3 + 2] += sparkVel[i * 3 + 2]
+
+          // 중력 효과 추가로 포물선 튕김
+          sparkVel[i * 3 + 1] -= 0.002
+        }
+        sPos.needsUpdate = true
+      }
 
       // C. 컨베이어 밖으로 나간 정상 제품 제거 처리
       const expiredWafers = wafers.filter((w) => w.progress >= 1.05 && !w.isFaulty)
@@ -539,22 +701,31 @@ export function InspectionCoreVisualizer() {
       // 3D 자원 메모리 해제
       conveyorGeo.dispose()
       railGeo.dispose()
+      rollerGeo.dispose()
       pillarGeo.dispose()
       crossbarGeo.dispose()
       cameraBodyGeo.dispose()
       lensGeo.dispose()
+      cameraLedGeo.dispose()
       laserGeo.dispose()
       trayGeo.dispose()
+      trayDecalGeo.dispose()
       gateBarGeo.dispose()
       motorGeo.dispose()
+      sparksGeo.dispose()
+      holoRingGeo.dispose()
 
       conveyorMat.dispose()
       frameMat.dispose()
       cameraBodyMat.dispose()
+      cameraLedMat.dispose()
       glowLaserMat.dispose()
       normalWaferMat.dispose()
       faultyWaferMat.dispose()
       scrapTrayMat.dispose()
+      trayRingMat.dispose()
+      sparkMat.dispose()
+      holoRingMat.dispose()
 
       renderer.dispose()
     }

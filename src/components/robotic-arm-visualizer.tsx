@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { Play, RotateCcw, Sliders, Cpu, Activity, CheckCircle, Move } from "lucide-react"
 import * as THREE from "three"
+// @ts-ignore
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
 
 type VisualizerState = {
   base: number
@@ -110,76 +112,98 @@ export function RoboticArmVisualizer() {
     // 2. 씬 구성
     const scene = new THREE.Scene()
 
-    // 3. 카메라 설정
+    // 3. 카메라 설정 (OrbitControls가 알아서 제어하므로 단순 셋업)
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
-    let camRadius = 7.5
-    let camTheta = Math.PI / 4
-    let camPhi = Math.PI / 3.2
+    camera.position.set(4.8, 3.8, 5.8)
 
-    const updateCameraPosition = () => {
-      camPhi = Math.max(0.05, Math.min(Math.PI / 2 - 0.02, camPhi))
-      camera.position.x = camRadius * Math.sin(camPhi) * Math.sin(camTheta)
-      camera.position.y = camRadius * Math.cos(camPhi)
-      camera.position.z = camRadius * Math.sin(camPhi) * Math.cos(camTheta)
-      camera.lookAt(0, 1.1, 0)
-    }
-    updateCameraPosition()
+    // 4. 관성(Damping)이 탑재된 묵직하고 고급스러운 OrbitControls 이식
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.enableDamping = true
+    controls.dampingFactor = 0.055
+    controls.maxPolarAngle = Math.PI / 2 - 0.02 // 카메라가 바닥 격자 아래로 뚫고 들어가지 않게 통제
+    controls.minDistance = 2.5
+    controls.maxDistance = 14.0
+    controls.target.set(0, 1.0, 0)
 
-    // 4. 고휘도 3포인트 스튜디오 조명 설계 (어둠 해소 및 금속 입체감 강조)
-    // 전체 밝기 대폭 상향 (0.45 -> 0.95)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95)
+    // 5. 고휘도 3포인트 스튜디오 조명 및 은은한 반사광 설계
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.98)
     scene.add(ambientLight)
 
-    // 주 직사광 (전면 밝게 비춤, 세기 0.8 -> 1.3)
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.3)
-    dirLight1.position.set(5, 10, 5)
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.4)
+    dirLight1.position.set(6, 12, 6)
     dirLight1.castShadow = true
-    dirLight1.shadow.mapSize.width = 1024
-    dirLight1.shadow.mapSize.height = 1024
+    dirLight1.shadow.mapSize.width = 2048
+    dirLight1.shadow.mapSize.height = 2048
+    dirLight1.shadow.bias = -0.0002
     scene.add(dirLight1)
 
-    // 보조 역사광 (반대편 그림자 영역 제거하여 시인성 확보)
-    const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.65)
+    const dirLight2 = new THREE.DirectionalLight(0xa5bcff, 0.85) // 푸르스름한 보조광
     dirLight2.position.set(-6, 8, -6)
     scene.add(dirLight2)
 
-    // 퍼플 무드 포인트 조명
-    const pointLight = new THREE.PointLight(0x8a53ff, 1.5, 12)
-    pointLight.position.set(0, 2.8, 0)
+    // 미래형 하이테크 레이저 원격 포인트 조명
+    const pointLight = new THREE.PointLight(0x7c4dff, 2.0, 15)
+    pointLight.position.set(0, 3.2, 0)
     scene.add(pointLight)
 
-    // 5. 작업 공간 그리드 바닥
-    const gridHelper = new THREE.GridHelper(8, 16, 0x6837e5, 0xcccccc)
+    // 6. 미래형 홀로그래픽 SF 바닥 데칼 (Holographic Target Stage)
+    const gridHelper = new THREE.GridHelper(8, 20, 0x5463ff, 0x2c3347)
     gridHelper.position.y = 0.01
     scene.add(gridHelper)
 
-    // 6. 밝고 화사한 브러시드 실버 메탈릭 및 글로우 재질 세팅
-    // 칙칙한 어두운 색을 걷어내고 밝은 은빛 크롬 금속 재질로 전면 변경
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x9099b3, roughness: 0.18, metalness: 0.85 })
-    const jointMat = new THREE.MeshStandardMaterial({ color: 0x7c4dff, roughness: 0.15, metalness: 0.9 })
-    const linkMat = new THREE.MeshStandardMaterial({ color: 0xd9e0f5, roughness: 0.1, metalness: 0.95 }) // 매우 밝은 크롬 실버
-    const glowMat = new THREE.MeshStandardMaterial({ color: 0x00f0ff, emissive: 0x00d8ff, emissiveIntensity: 2.2 }) // 화사한 네온 블루 3D 공
-    const trayMat = new THREE.MeshStandardMaterial({ color: 0x22293d, roughness: 0.5, metalness: 0.7 })
+    // 바닥 중심의 빛나는 홀로그램 동심원 링들
+    const holoRingMat = new THREE.MeshBasicMaterial({
+      color: 0x00f0ff,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide
+    })
+    const holoRingGeo1 = new THREE.RingGeometry(1.8, 1.83, 64)
+    holoRingGeo1.rotateX(-Math.PI / 2)
+    const holoRing1 = new THREE.Mesh(holoRingGeo1, holoRingMat)
+    holoRing1.position.y = 0.02
+    scene.add(holoRing1)
 
-    // 7. 로봇 링크 배치 및 계층 구조(Hierarchical Structure) 구축
+    const holoRingGeo2 = new THREE.RingGeometry(2.2, 2.22, 64)
+    holoRingGeo2.rotateX(-Math.PI / 2)
+    const holoRing2 = new THREE.Mesh(holoRingGeo2, holoRingMat)
+    holoRing2.position.y = 0.02
+    scene.add(holoRing2)
+
+    // 7. 하이엔드 티타늄 메탈릭 및 테크니컬 컬러 스킨 재질 설정
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x2a2f3d, roughness: 0.25, metalness: 0.88 }) // 카본 슬레이트
+    const jointMat = new THREE.MeshStandardMaterial({ color: 0x6e3cff, roughness: 0.15, metalness: 0.9, emissive: 0x220555, emissiveIntensity: 0.4 }) // 네온 퍼플 조인트
+    const linkMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.12, metalness: 0.96 }) // 브러시드 실버 티타늄
+    const pistonMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0.98 }) // 초고광택 크롬 피스톤 로드
+    const glowMat = new THREE.MeshStandardMaterial({
+      color: 0x00f0ff,
+      emissive: 0x00b4d8,
+      emissiveIntensity: 2.8,
+      roughness: 0.08,
+      metalness: 0.9
+    }) // 휘황찬란하게 빛나는 에너지 구체 공
+    const trayMat = new THREE.MeshStandardMaterial({ color: 0x181c2b, roughness: 0.4, metalness: 0.8, emissive: 0x080a14 })
+    const activeGlowRingMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.8 })
+
+    // 8. 로봇 계층 구조 어셈블리
     const robotGroup = new THREE.Group()
     scene.add(robotGroup)
 
-    // A. 베이스 실린더
-    const baseGeo = new THREE.CylinderGeometry(0.8, 0.9, 0.3, 32)
+    // A. 베이스 섀시 (조각나고 단단해 보이는 구조)
+    const baseGeo = new THREE.CylinderGeometry(0.85, 0.95, 0.32, 8) // 테두리가 각진 8각형 프리미엄 섀시
     const baseMesh = new THREE.Mesh(baseGeo, baseMat)
-    baseMesh.position.y = 0.15
+    baseMesh.position.y = 0.16
     baseMesh.receiveShadow = true
     baseMesh.castShadow = true
     robotGroup.add(baseMesh)
 
-    // B. Y축 회전 그룹 (Base Rotation - 360도 전방위 선회)
+    // B. Y축 회전 허브 (Base Turn-table)
     const baseRotGroup = new THREE.Group()
-    baseRotGroup.position.y = 0.3
+    baseRotGroup.position.y = 0.32
     robotGroup.add(baseRotGroup)
 
-    // C. 1번 관절 숄더 힌지 (Shoulder Joint)
-    const shoulderJointGeo = new THREE.SphereGeometry(0.24, 16, 16)
+    // C. 1번 관절 숄더 힌지 (Shoulder Joint Sphere)
+    const shoulderJointGeo = new THREE.SphereGeometry(0.25, 32, 32)
     const shoulderJointMesh = new THREE.Mesh(shoulderJointGeo, jointMat)
     baseRotGroup.add(shoulderJointMesh)
 
@@ -187,49 +211,70 @@ export function RoboticArmVisualizer() {
     const shoulderRotGroup = new THREE.Group()
     baseRotGroup.add(shoulderRotGroup)
 
-    // E. 1번 링크 (Shoulder Link Cylinder - 1.8 units)
+    // E. 1번 링크 (이중 피스톤 로드가 장착된 실린더)
     const L1_len = 1.8
-    const link1Geo = new THREE.CylinderGeometry(0.13, 0.16, L1_len, 16)
+    const link1Geo = new THREE.CylinderGeometry(0.14, 0.17, L1_len, 16)
     link1Geo.translate(0, L1_len / 2, 0)
     const link1Mesh = new THREE.Mesh(link1Geo, linkMat)
     link1Mesh.castShadow = true
     shoulderRotGroup.add(link1Mesh)
+
+    // 기계적인 유압 실린더 피스톤 로드 추가 (Shoulder 뒤쪽 배치 기믹)
+    const pistonOuterGeo = new THREE.CylinderGeometry(0.06, 0.07, 0.9, 12)
+    pistonOuterGeo.translate(0, 0.45, 0)
+    const pistonOuter = new THREE.Mesh(pistonOuterGeo, baseMat)
+    pistonOuter.position.set(0, 0.2, -0.18)
+    pistonOuter.rotation.x = 0.12
+    shoulderRotGroup.add(pistonOuter)
+
+    const pistonInnerGeo = new THREE.CylinderGeometry(0.038, 0.038, 0.8, 12)
+    pistonInnerGeo.translate(0, 0.4, 0)
+    const pistonInner = new THREE.Mesh(pistonInnerGeo, pistonMat)
+    pistonInner.position.set(0, 0.2, -0.18)
+    pistonInner.rotation.x = 0.12
+    shoulderRotGroup.add(pistonInner)
 
     // F. 2번 관절 엘보우 힌지 그룹 (Elbow Joint)
     const elbowRotGroup = new THREE.Group()
     elbowRotGroup.position.y = L1_len
     shoulderRotGroup.add(elbowRotGroup)
 
-    const elbowJointGeo = new THREE.SphereGeometry(0.19, 16, 16)
+    const elbowJointGeo = new THREE.SphereGeometry(0.20, 24, 24)
     const elbowJointMesh = new THREE.Mesh(elbowJointGeo, jointMat)
     elbowRotGroup.add(elbowJointMesh)
 
-    // G. 2번 링크 (Elbow Link Cylinder - 1.4 units)
+    // G. 2번 링크 (티타늄 테이퍼 실린더)
     const L2_len = 1.4
-    const link2Geo = new THREE.CylinderGeometry(0.09, 0.12, L2_len, 16)
+    const link2Geo = new THREE.CylinderGeometry(0.09, 0.125, L2_len, 16)
     link2Geo.translate(0, L2_len / 2, 0)
     const link2Mesh = new THREE.Mesh(link2Geo, linkMat)
     link2Mesh.castShadow = true
     elbowRotGroup.add(link2Mesh)
 
-    // H. 엔드 이펙터 손목 및 그리퍼 헤드 그룹
+    // H. 엔드 이펙터 손목 허브 & 공압 흡착 헤드
     const gripperGroup = new THREE.Group()
     gripperGroup.position.y = L2_len
     elbowRotGroup.add(gripperGroup)
 
-    const wristGeo = new THREE.BoxGeometry(0.26, 0.1, 0.26)
+    const wristGeo = new THREE.BoxGeometry(0.28, 0.08, 0.28)
     const wristMesh = new THREE.Mesh(wristGeo, baseMat)
     gripperGroup.add(wristMesh)
 
-    // I. 그리퍼 좌측 집게
-    const clawLeftGeo = new THREE.BoxGeometry(0.04, 0.24, 0.08)
+    // 진공 흡착판 상태 LED 글로우 링 장착
+    const glowRingGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.02, 16)
+    const statusGlowRing = new THREE.Mesh(glowRingGeo, activeGlowRingMat)
+    statusGlowRing.position.y = 0.04
+    gripperGroup.add(statusGlowRing)
+
+    // I. 그리퍼 좌측 집게 클로
+    const clawLeftGeo = new THREE.BoxGeometry(0.038, 0.24, 0.075)
     clawLeftGeo.translate(0, 0.12, 0)
     const clawLeft = new THREE.Mesh(clawLeftGeo, jointMat)
     clawLeft.position.set(-0.08, 0.05, 0)
     gripperGroup.add(clawLeft)
 
-    // J. 그리퍼 우측 집게
-    const clawRightGeo = new THREE.BoxGeometry(0.04, 0.24, 0.08)
+    // J. 그리퍼 우측 집게 클로
+    const clawRightGeo = new THREE.BoxGeometry(0.038, 0.24, 0.075)
     clawRightGeo.translate(0, 0.12, 0)
     const clawRight = new THREE.Mesh(clawRightGeo, jointMat)
     clawRight.position.set(0.08, 0.05, 0)
@@ -240,87 +285,68 @@ export function RoboticArmVisualizer() {
     gripperTipAnchor.position.set(0, 0.22, 0)
     gripperGroup.add(gripperTipAnchor)
 
-    // 8. 에너지 구체 물체 (3D Sphere - 납작 웨이퍼에서 완벽한 입체 구체 '공'으로 업그레이드)
+    // 9. 에너지 구체 물체 (화사한 다차원 네온 3D 구체 공)
     const sphereRadius = 0.20
     const waferGeo = new THREE.SphereGeometry(sphereRadius, 32, 32)
     const waferMesh = new THREE.Mesh(waferGeo, glowMat)
     waferMesh.castShadow = true
     scene.add(waferMesh)
 
-    // 9. 소스(Source) 및 데스트(Destination) 트레이 거치대
-    const trayGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.08, 32)
+    // 10. 소스(Source) 및 데스트(Destination) 트레이 거치대 (중심부 가이드 라인 링 추가)
+    const trayGeo = new THREE.CylinderGeometry(0.38, 0.44, 0.09, 32)
     
     // 소스 트레이 거치대
     const traySource = new THREE.Mesh(trayGeo, trayMat)
     const srcX = 2.0 * Math.sin((60 * Math.PI) / 180)
     const srcZ = 2.0 * Math.cos((60 * Math.PI) / 180)
-    traySource.position.set(srcX, 0.04, srcZ)
+    traySource.position.set(srcX, 0.045, srcZ)
     scene.add(traySource)
+
+    const srcDecalGeo = new THREE.RingGeometry(0.24, 0.26, 32)
+    srcDecalGeo.rotateX(-Math.PI / 2)
+    const srcDecal = new THREE.Mesh(srcDecalGeo, holoRingMat)
+    srcDecal.position.set(srcX, 0.095, srcZ)
+    scene.add(srcDecal)
 
     // 데스트 트레이 거치대
     const trayDest = new THREE.Mesh(trayGeo, trayMat)
-    const destX = 2.0 * Math.sin((-120 * Math.PI) / 180) // 360 선회 궤도 각도
+    const destX = 2.0 * Math.sin((-120 * Math.PI) / 180)
     const destZ = 2.0 * Math.cos((-120 * Math.PI) / 180)
-    trayDest.position.set(destX, 0.04, destZ)
+    trayDest.position.set(destX, 0.045, destZ)
     scene.add(trayDest)
 
-    // 10. 마우스 드래그 기반 카메라 궤도 회전 제어
-    let isDragging = false
-    let prevX = 0
-    let prevY = 0
+    const destDecal = new THREE.Mesh(srcDecalGeo, holoRingMat)
+    destDecal.position.set(destX, 0.095, destZ)
+    scene.add(destDecal)
 
-    const onMouseDown = (e: MouseEvent) => {
-      isDragging = true
-      prevX = e.clientX
-      prevY = e.clientY
+    // 11. ✨ 극강의 Sci-Fi 진공 흡입 입자 파티클 시스템 (Vacuum Particle System)
+    const particleCount = 80
+    const particlesGeo = new THREE.BufferGeometry()
+    const positions = new Float32Array(particleCount * 3)
+    const velocities = new Float32Array(particleCount * 3)
+
+    // 파티클들을 그리퍼 주변에 랜덤 배치
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 2.0
+      positions[i * 3 + 1] = Math.random() * 2.0 + 0.5
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 2.0
+
+      velocities[i * 3] = (Math.random() - 0.5) * 0.02
+      velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.02
+      velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.02
     }
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return
-      const deltaX = e.clientX - prevX
-      const deltaY = e.clientY - prevY
-      
-      camTheta -= deltaX * 0.007
-      camPhi -= deltaY * 0.007
-      
-      prevX = e.clientX
-      prevY = e.clientY
-      
-      updateCameraPosition()
-    }
+    particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3))
+    const particleMat = new THREE.PointsMaterial({
+      color: 0x00f0ff,
+      size: 0.06,
+      transparent: true,
+      opacity: 0.7,
+      blending: THREE.AdditiveBlending
+    })
 
-    const onMouseUp = () => {
-      isDragging = false
-    }
-
-    // 모바일 터치 대응
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return
-      isDragging = true
-      prevX = e.touches[0].clientX
-      prevY = e.touches[0].clientY
-    }
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!isDragging || e.touches.length !== 1) return
-      const deltaX = e.touches[0].clientX - prevX
-      const deltaY = e.touches[0].clientY - prevY
-      
-      camTheta -= deltaX * 0.01
-      camPhi -= deltaY * 0.01
-      
-      prevX = e.touches[0].clientX
-      prevY = e.touches[0].clientY
-      
-      updateCameraPosition()
-    }
-
-    canvas.addEventListener("mousedown", onMouseDown)
-    window.addEventListener("mousemove", onMouseMove)
-    window.addEventListener("mouseup", onMouseUp)
-    canvas.addEventListener("touchstart", onTouchStart, { passive: true })
-    window.addEventListener("touchmove", onTouchMove, { passive: true })
-    window.addEventListener("touchend", onMouseUp)
+    const vacuumParticles = new THREE.Points(particlesGeo, particleMat)
+    scene.add(vacuumParticles)
 
     // 11. 60fps WebGL 실시간 렌더링 프레임 루프
     const animate = () => {
@@ -400,6 +426,75 @@ export function RoboticArmVisualizer() {
         setRealDistanceText(text)
       }
 
+      // OrbitControls 물리 댐핑 업데이트
+      controls.update()
+
+      // LED 글로우 링 상태 표시 색상 동적 매핑
+      if (currentWaferPos === "gripper") {
+        (statusGlowRing.material as THREE.MeshBasicMaterial).color.setHex(0x00f0ff) // 픽업 완료: 사이언 블루
+      } else if (isReady) {
+        (statusGlowRing.material as THREE.MeshBasicMaterial).color.setHex(0x00ff88) // 도킹 준비: 밝은 연두
+      } else {
+        (statusGlowRing.material as THREE.MeshBasicMaterial).color.setHex(0xff3366) // 대기/비동기: 경고 적색
+      }
+
+      // ✨ 진공 흡입 입자 파티클 (Vacuum Particle System) 물리 연산
+      const posAttr = vacuumParticles.geometry.attributes.position as THREE.BufferAttribute
+      const posArray = posAttr.array as Float32Array
+      
+      const isVacuumActive = !currentState.gripperOpen || currentWaferPos === "gripper"
+
+      for (let i = 0; i < particleCount; i++) {
+        const px = posArray[i * 3]
+        const py = posArray[i * 3 + 1]
+        const pz = posArray[i * 3 + 2]
+
+        if (isVacuumActive) {
+          // 흡착 상태: 파티클들이 그리퍼 끝단 절대 좌표(gripperWorldPos)를 향해 고속 흡입 수렴
+          const dx = gripperWorldPos.x - px
+          const dy = gripperWorldPos.y - py
+          const dz = gripperWorldPos.z - pz
+
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+          
+          if (dist < 0.08) {
+            // 안착 성공 시 다시 외부 구역으로 리스폰시켜 흡입 루프 유지
+            posArray[i * 3] = gripperWorldPos.x + (Math.random() - 0.5) * 1.5
+            posArray[i * 3 + 1] = gripperWorldPos.y + Math.random() * 1.5 + 0.3
+            posArray[i * 3 + 2] = gripperWorldPos.z + (Math.random() - 0.5) * 1.5
+          } else {
+            // 그리퍼를 향한 가속 이끌림 물리
+            const pullForce = 0.045 / (dist + 0.1)
+            posArray[i * 3] += (dx / dist) * pullForce + (Math.random() - 0.5) * 0.005
+            posArray[i * 3 + 1] += (dy / dist) * pullForce + (Math.random() - 0.5) * 0.005
+            posArray[i * 3 + 2] += (dz / dist) * pullForce + (Math.random() - 0.5) * 0.005
+          }
+        } else {
+          // 대기/해제 상태: 공중에 떠다니며 조명 주변을 꾸미는 브라운 테크 미세 난류 운동
+          velocities[i * 3] += (Math.random() - 0.5) * 0.001
+          velocities[i * 3 + 1] += (Math.random() - 0.5) * 0.001
+          velocities[i * 3 + 2] += (Math.random() - 0.5) * 0.001
+
+          // 속도 감쇄
+          velocities[i * 3] *= 0.98
+          velocities[i * 3 + 1] *= 0.98
+          velocities[i * 3 + 2] *= 0.98
+
+          posArray[i * 3] += velocities[i * 3]
+          posArray[i * 3 + 1] += velocities[i * 3 + 1]
+          posArray[i * 3 + 2] += velocities[i * 3 + 2]
+
+          // 작업 경계면 바깥 이탈 시 중앙 바닥으로 재스폰
+          const dFromCenter = Math.sqrt(px * px + pz * pz)
+          if (dFromCenter > 3.5 || py < 0.05 || py > 3.0) {
+            posArray[i * 3] = (Math.random() - 0.5) * 1.8
+            posArray[i * 3 + 1] = Math.random() * 1.2 + 0.5
+            posArray[i * 3 + 2] = (Math.random() - 0.5) * 1.8
+          }
+        }
+      }
+      posAttr.needsUpdate = true
+
       renderer.render(scene, camera)
       animFrameRef.current = window.requestAnimationFrame(animate)
     }
@@ -423,13 +518,6 @@ export function RoboticArmVisualizer() {
 
     return () => {
       if (animFrameRef.current) window.cancelAnimationFrame(animFrameRef.current)
-      
-      canvas.removeEventListener("mousedown", onMouseDown)
-      window.removeEventListener("mousemove", onMouseMove)
-      window.removeEventListener("mouseup", onMouseUp)
-      canvas.removeEventListener("touchstart", onTouchStart)
-      window.removeEventListener("touchmove", onTouchMove)
-      window.removeEventListener("touchend", onMouseUp)
       
       resizeObserver.disconnect()
 
