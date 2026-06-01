@@ -32,9 +32,10 @@ export function CampusDeliveryVisualizer() {
   const animFrameRef = useRef<number | null>(null)
   const radarFrameRef = useRef<number | null>(null)
 
-  // 실시간 좌표 연계를 위한 레프
+  // 실시간 좌표 및 진행률 연계를 위한 레프
   const amrPositionRef = useRef({ x: -2.0, z: 0.0 })
   const obstaclePositionRef = useRef({ x: 0.0, z: -0.1 })
+  const progressRef = useRef(0.0)
 
   useEffect(() => {
     modeRef.current = mode
@@ -437,7 +438,6 @@ export function CampusDeliveryVisualizer() {
     // 실시간 주행 궤적용 변수
     let currentX = -2.0
     let currentZ = 0.0
-    let progress = 0.0
     let avoidOffset = 0.0
 
     // 3D 렌더러 루프
@@ -507,9 +507,9 @@ export function CampusDeliveryVisualizer() {
         }
 
         // 전진 이송
-        progress += speedVal
-        if (progress >= 1.0) {
-          progress = 1.0
+        progressRef.current += speedVal
+        if (progressRef.current >= 1.0) {
+          progressRef.current = 1.0
           setMode("idle")
           setSpeed(0)
           addLog("[NAV-CORE] 목적지 도달 성공! AMR 배송실 열림 제어 기동.")
@@ -518,7 +518,7 @@ export function CampusDeliveryVisualizer() {
         // 3D 씬 좌표 실시간 투영
         const startX = -2.0
         const endX = 2.0
-        currentX = startX + (endX - startX) * progress
+        currentX = startX + (endX - startX) * progressRef.current
         currentZ = avoidOffset
 
         amrGroup.position.set(currentX, 0.08, currentZ)
@@ -532,18 +532,18 @@ export function CampusDeliveryVisualizer() {
       } else if (currentMode === "returning") {
         // 충전 도킹 기지로 후진/복귀
         setSpeed(1.0)
-        progress -= 0.006
+        progressRef.current -= 0.006
         wSpeed = -0.006 * 12.0 // 역회전 휠 굴림
 
-        if (progress <= 0) {
-          progress = 0
+        if (progressRef.current <= 0) {
+          progressRef.current = 0
           setMode("idle")
           setSpeed(0)
           addLog("[AMR-SYS] 도킹 기지 복귀 안착 완료. 유선 충전 시동 및 배터리 충전 중.")
           setBattery(100)
         }
 
-        currentX = -2.0 + (2.0 - (-2.0)) * progress
+        currentX = -2.0 + (2.0 - (-2.0)) * progressRef.current
         currentZ = 0
 
         amrGroup.position.set(currentX, 0.08, currentZ)
@@ -652,6 +652,7 @@ export function CampusDeliveryVisualizer() {
     setXPos(-2.0)
     setZPos(0)
     setObstacleActive(false)
+    progressRef.current = 0.0
     amrPositionRef.current = { x: -2.0, z: 0.0 }
     addLog("[SYS-RESET] AMR 플랫폼 관제 텔레메트리 정보 및 오류 인젝션 상태 복구 완료.")
   }
@@ -775,7 +776,7 @@ export function CampusDeliveryVisualizer() {
               type="button"
               className={`btn-action btn-gripper ${mode === "delivering" ? "btn-active-glow" : ""}`}
               onClick={startMission}
-              disabled={mode === "delivering"}
+              disabled={mode === "delivering" || mode === "returning" || progressRef.current >= 0.95}
             >
               <Check size={14} />
               <span>배송 시작 (Start)</span>
@@ -803,7 +804,7 @@ export function CampusDeliveryVisualizer() {
               type="button"
               className={`btn-action btn-gripper ${mode === "returning" ? "btn-active-glow" : ""}`}
               onClick={returnToDock}
-              disabled={mode === "returning" || mode === "idle"}
+              disabled={mode === "returning" || mode === "delivering" || (mode === "idle" && progressRef.current <= 0.05)}
             >
               <RefreshCw size={14} />
               <span>충전 귀환 (Return)</span>
