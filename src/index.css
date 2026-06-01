@@ -1685,3 +1685,489 @@ textarea:focus-visible {
     animation-name: focus-in-contract-mobile !important;
   }
 }
+
+/* ==========================================================================
+   Robotic Arm Visualizer Styles (Premium B2B Visual Sandbox)
+   ========================================================================== */
+
+.robotic-sandbox {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.sandbox-card {
+  position: relative;
+  display: grid;
+  gap: 20px;
+  border: 1px solid oklch(1 0 0 / 14%);
+  border-radius: 20px;
+  background: oklch(0.12 0.025 250 / 92%);
+  box-shadow: 
+    0 30px 70px oklch(0.1 0.1 260 / 38%),
+    inset 0 1px 0 oklch(1 0 0 / 18%);
+  padding: clamp(16px, 3vw, 24px);
+  color: white;
+  backdrop-filter: blur(20px);
+  overflow: hidden;
+  transition: border-color 300ms ease, box-shadow 300ms ease;
+}
+
+.sandbox-card:hover {
+  border-color: oklch(0.68 0.2 229 / 36%);
+  box-shadow: 
+    0 30px 80px oklch(0.1 0.1 260 / 42%),
+    0 0 20px oklch(0.68 0.2 229 / 14%),
+    inset 0 1px 0 oklch(1 0 0 / 24%);
+}
+
+.sandbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid oklch(1 0 0 / 10%);
+  padding-bottom: 16px;
+}
+
+.sandbox-header .title-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sandbox-header .title-area svg {
+  width: 22px;
+  height: 22px;
+  color: oklch(0.68 0.2 229);
+}
+
+.sandbox-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.sandbox-header p {
+  margin: 2px 0 0;
+  color: oklch(0.78 0.025 250);
+  font-size: 0.78rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.badge-active {
+  background: oklch(0.56 0.24 265 / 24%);
+  color: oklch(0.68 0.2 229);
+  border: 1px solid oklch(0.68 0.2 229 / 38%);
+}
+
+.badge-manual {
+  background: oklch(1 0 0 / 8%);
+  color: oklch(0.86 0.02 250);
+  border: 1px solid oklch(1 0 0 / 14%);
+}
+
+/* 스크린 영역 */
+.sandbox-screen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 13;
+  border: 1px solid oklch(0.12 0.025 250 / 14%);
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.coordinate-overlay {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  display: grid;
+  gap: 6px;
+  border: 1px solid oklch(1 0 0 / 8%);
+  border-radius: 8px;
+  background: oklch(0.12 0.025 250 / 72%);
+  padding: 8px 12px;
+  backdrop-filter: blur(6px);
+}
+
+.telemetry-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+}
+
+.telemetry-item .label {
+  color: oklch(0.78 0.025 250);
+  font-weight: 700;
+}
+
+.telemetry-item .value {
+  color: oklch(0.68 0.2 229);
+  font-weight: 850;
+  text-shadow: 0 0 8px oklch(0.68 0.2 229 / 38%);
+}
+
+.arm-3d-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+  cursor: grab;
+}
+
+.arm-3d-canvas:active {
+  cursor: grabbing;
+}
+
+.canvas-instruction {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid oklch(1 0 0 / 8%);
+  border-radius: 8px;
+  background: oklch(0.12 0.025 250 / 72%);
+  padding: 8px 12px;
+  color: oklch(0.78 0.025 250);
+  font-size: 0.7rem;
+  font-weight: 750;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  animation: pulse-opacity 2.5s infinite ease-in-out;
+}
+
+/* 터미널 콘솔 로그 */
+.sandbox-console {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  border-top: 1px solid oklch(1 0 0 / 10%);
+  background: oklch(0.08 0.018 250 / 88%);
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  backdrop-filter: blur(4px);
+}
+
+.sandbox-console .prompt {
+  color: oklch(0.68 0.2 229);
+  font-weight: bold;
+}
+
+.sandbox-console .text {
+  color: oklch(0.9 0.02 250);
+}
+
+/* 조작 컨트롤 영역 */
+.sandbox-controls {
+  display: grid;
+  gap: 16px;
+}
+
+.control-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid oklch(1 0 0 / 10%);
+  padding-bottom: 8px;
+}
+
+.control-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: white;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.control-tabs button svg {
+  color: oklch(0.68 0.2 229);
+}
+
+.controls-group-status {
+  font-size: 0.74rem;
+  color: oklch(0.58 0.22 27);
+  font-weight: 700;
+}
+
+.sliders-container {
+  display: grid;
+  gap: 14px;
+}
+
+.slider-row {
+  display: grid;
+  gap: 6px;
+}
+
+.slider-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.slider-meta label {
+  color: oklch(0.86 0.02 250);
+}
+
+.slider-meta .value {
+  color: oklch(0.68 0.2 229);
+}
+
+/* 커스텀 슬라이더 스타일 */
+.arm-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 12%);
+  outline: none;
+  transition: background 180ms ease;
+}
+
+.arm-slider:hover:not(:disabled) {
+  background: oklch(1 0 0 / 18%);
+}
+
+.arm-slider:disabled {
+  opacity: 0.36;
+  cursor: not-allowed;
+}
+
+.arm-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: oklch(0.68 0.2 229);
+  box-shadow: 0 0 10px oklch(0.68 0.2 229 / 72%);
+  cursor: pointer;
+  transition: transform 120ms ease, background-color 120ms ease;
+}
+
+.arm-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.22);
+  background-color: oklch(0.56 0.24 265);
+}
+
+.arm-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid white;
+  border-radius: 50%;
+  background: oklch(0.68 0.2 229);
+  box-shadow: 0 0 10px oklch(0.68 0.2 229 / 72%);
+  cursor: pointer;
+  transition: transform 120ms ease, background-color 120ms ease;
+}
+
+.arm-slider::-moz-range-thumb:hover {
+  transform: scale(1.22);
+  background-color: oklch(0.56 0.24 265);
+}
+
+/* 버튼 제어반 */
+.action-buttons {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr 1.3fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.btn-action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid oklch(1 0 0 / 14%);
+  border-radius: 8px;
+  background: oklch(1 0 0 / 6%);
+  color: white;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 750;
+  transition: background 180ms ease, border-color 180ms ease, transform 120ms ease, box-shadow 180ms ease;
+}
+
+.btn-action:hover:not(:disabled) {
+  background: oklch(1 0 0 / 14%);
+  border-color: oklch(1 0 0 / 24%);
+  transform: translateY(-1.5px);
+}
+
+.btn-action:disabled {
+  opacity: 0.36;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.btn-gripper {
+  border-color: oklch(0.7 0.12 142 / 34%);
+  background: oklch(0.7 0.12 142 / 8%);
+  color: oklch(0.76 0.12 142);
+}
+
+.btn-gripper:hover:not(:disabled) {
+  background: oklch(0.7 0.12 142 / 16%);
+  border-color: oklch(0.7 0.12 142 / 46%);
+}
+
+.btn-gripper.btn-active-glow {
+  background: oklch(0.58 0.22 27 / 18%);
+  border-color: oklch(0.58 0.22 27 / 54%);
+  color: oklch(0.68 0.22 27);
+  box-shadow: 0 0 14px oklch(0.58 0.22 27 / 28%);
+}
+
+.btn-autorun {
+  border-color: oklch(0.68 0.2 229 / 44%);
+  background: oklch(0.68 0.2 229);
+  color: oklch(0.12 0.025 250);
+  box-shadow: 0 4px 18px oklch(0.68 0.2 229 / 24%);
+}
+
+.btn-autorun:hover:not(:disabled) {
+  background: oklch(0.56 0.24 265);
+  box-shadow: 0 4px 24px oklch(0.56 0.24 265 / 44%);
+}
+
+.btn-stop {
+  border-color: oklch(0.58 0.22 27 / 52%);
+  background: oklch(0.58 0.22 27);
+  color: white;
+  box-shadow: 0 4px 18px oklch(0.58 0.22 27 / 24%);
+}
+
+.btn-stop:hover {
+  background: oklch(0.52 0.22 27);
+  box-shadow: 0 4px 24px oklch(0.58 0.22 27 / 48%);
+}
+
+.btn-stop .stop-icon {
+  width: 9px;
+  height: 9px;
+  background: white;
+  border-radius: 1px;
+}
+
+.btn-reset svg {
+  color: oklch(0.78 0.025 250);
+  transition: transform 300ms ease;
+}
+
+.btn-reset:hover svg {
+  transform: rotate(-180deg);
+}
+
+/* 로드맵 시퀀스 프로그래스 바 */
+.sequence-roadmap {
+  border-top: 1px solid oklch(1 0 0 / 10%);
+  padding-top: 14px;
+}
+
+.step-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: oklch(1 0 0 / 8%);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, oklch(0.68 0.2 229), oklch(0.56 0.24 265));
+  border-radius: 999px;
+  transition: width 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.roadmap-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.roadmap-meta .step-count {
+  color: oklch(0.78 0.025 250);
+}
+
+.roadmap-meta .step-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: oklch(0.7 0.12 142);
+}
+
+/* 애니메이션 및 펄스 */
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.52; }
+}
+
+.text-pulse {
+  animation: pulse-opacity 1.5s infinite ease-in-out;
+  color: oklch(0.58 0.22 27);
+  font-weight: 750;
+}
+
+.spin-pulse {
+  animation: spin 2s linear infinite, pulse-opacity 1s infinite ease-in-out;
+}
+
+.icon-pulse {
+  animation: pulse-opacity 2s infinite ease-in-out;
+}
+
+.wafer-glow {
+  animation: pulse-opacity 1s infinite ease-in-out;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .action-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+
+.btn-ready-glow {
+  background: oklch(0.7 0.12 142 / 18%) !important;
+  border-color: oklch(0.7 0.12 142 / 54%) !important;
+  color: oklch(0.76 0.12 142) !important;
+  box-shadow: 0 0 14px oklch(0.7 0.12 142 / 28%);
+  animation: pulse-opacity 1.5s infinite ease-in-out;
+}
+

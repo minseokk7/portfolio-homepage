@@ -20,6 +20,7 @@ import {
   type SupabaseContactMessage,
   type SupabasePost,
 } from "@/lib/supabase"
+import { RoboticArmVisualizer } from "@/components/robotic-arm-visualizer"
 
 type Post = {
   id: string
@@ -413,9 +414,13 @@ function DetailPage({ system }: { system: SystemItem }) {
           <h1 id="detail-title">{system.name}</h1>
           <p className="detail-lead">{system.detail}</p>
         </div>
-        <figure className="detail-visual">
-          <img src={system.image} alt={system.imageAlt} />
-        </figure>
+        {system.slug === "factory-motion" ? (
+          <RoboticArmVisualizer />
+        ) : (
+          <figure className="detail-visual">
+            <img src={system.image} alt={system.imageAlt} />
+          </figure>
+        )}
       </div>
       <div className="detail-grid">
         <article>
