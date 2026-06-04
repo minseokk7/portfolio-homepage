@@ -531,9 +531,31 @@ export function CampusDeliveryVisualizer() {
 
       } else if (currentMode === "returning") {
         // 충전 도킹 기지로 후진/복귀
+        let speedVal = 0.006
+        wSpeed = -speedVal * 12.0 // 역회전 휠 굴림
         setSpeed(1.0)
-        progressRef.current -= 0.006
-        wSpeed = -0.006 * 12.0 // 역회전 휠 굴림
+
+        // 장애물 존재 및 거리 센싱
+        const obstacleX = 0.0
+
+        if (activeObstacle && Math.abs(currentX - obstacleX) < 1.1) {
+          // 장애물 사각 접근권 진입 시 속도 자동 감속 처리 (안전 셧다운 제어 0.4 m/s 연계)
+          speedVal = 0.002
+          wSpeed = -speedVal * 12.0
+          setSpeed(0.4)
+
+          const dx = currentX - obstacleX
+          const avoidanceArc = 0.46 * Math.exp(-Math.pow(dx * 1.5, 2))
+          avoidOffset = avoidanceArc
+          
+          amrGroup.rotation.y = Math.PI - Math.sin(dx * 2) * 0.42 // 우회 선회 각도 표현
+        } else {
+          setSpeed(1.0)
+          avoidOffset += (0.0 - avoidOffset) * 0.08
+          amrGroup.rotation.y += (Math.PI - amrGroup.rotation.y) * 0.15
+        }
+
+        progressRef.current -= speedVal
 
         if (progressRef.current <= 0) {
           progressRef.current = 0
@@ -544,10 +566,9 @@ export function CampusDeliveryVisualizer() {
         }
 
         currentX = -2.0 + (2.0 - (-2.0)) * progressRef.current
-        currentZ = 0
+        currentZ = avoidOffset
 
         amrGroup.position.set(currentX, 0.08, currentZ)
-        amrGroup.rotation.y = Math.PI // 180도 선회
 
         setXPos(Number(currentX.toFixed(2)))
         setZPos(Number(currentZ.toFixed(2)))
