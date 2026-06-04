@@ -1855,6 +1855,7 @@ textarea:focus-visible {
 
 /* 터미널 콘솔 로그 */
 .sandbox-console {
+  display: none;
   position: absolute;
   bottom: 0;
   left: 0;
